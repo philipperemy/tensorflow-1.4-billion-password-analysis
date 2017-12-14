@@ -2,6 +2,10 @@
 
 Using deep learning and NLP to analyze a large corpus of clear text passwords.
 
+Objectives:
+- Train a generative model.
+- Understand how people change their passwords over time: hello123 -> h@llo123 -> h@llo!23.
+
 Disclaimer: for research purposes only.
 
 ## They are talking about it in the press
