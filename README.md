@@ -2,7 +2,7 @@
 
 Using deep learning and NLP to analyze a large corpus of clear text passwords.
 
-Disclaimer:
+Disclaimer: for research purposes only.
 
 ## They are talking about it in the press
 
