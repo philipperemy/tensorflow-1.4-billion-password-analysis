@@ -22,6 +22,8 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             self.cache[key] = list(self.cache[key])
             if len(self.cache[key]) <= 1:
                 del self.cache[key]
+            else:
+                a = 2
 
     def call(self, emails_passwords):
         for (email, password) in emails_passwords:
