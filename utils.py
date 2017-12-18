@@ -23,7 +23,7 @@ def read_all(breach_compilation_folder, on_file_read_call_back):
 
 
 def read_n_files(breach_compilation_folder, num_files, on_file_read_call_back_class):
-    breach_compilation_folder += 'data/'
+    breach_compilation_folder = os.path.join(os.path.expanduser(breach_compilation_folder), 'data')
     all_filenames = glob(breach_compilation_folder + '/**/*', recursive=True)
     callback_class_name = str(on_file_read_call_back_class).split('callback.')[-1][:-2]
     output_dir = os.path.join(os.path.expanduser('~/BreachCompilationAnalysis'), callback_class_name)
