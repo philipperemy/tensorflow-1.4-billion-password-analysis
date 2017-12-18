@@ -8,7 +8,7 @@ Objectives:
 
 Disclaimer: for research purposes only.
 
-## They are talking about it in the press
+## In the press
 
 - [1.4 Billion Clear Text Credentials Discovered in a Single Database](https://medium.com/4iqdelvedeep/1-4-billion-clear-text-credentials-discovered-in-a-single-database-3131d0a1ae14)
 - [Collection of 1.4 Billion Plain-Text Leaked Passwords Found Circulating Online](https://thehackernews.com/2017/12/data-breach-password-list.html)
