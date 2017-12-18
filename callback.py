@@ -1,5 +1,7 @@
 import json
 
+from shp import find_shortest_hamiltonian_path_in_complete_graph
+
 
 class Callback:
     def __init__(self):
@@ -19,11 +21,11 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
     def finalize_cache(self):
         keys = list(self.cache.keys())
         for key in keys:
-            self.cache[key] = list(self.cache[key])
+            orig_password_list = self.cache[key]
+            shp = find_shortest_hamiltonian_path_in_complete_graph(orig_password_list, False)
+            self.cache[key] = list(shp)
             if len(self.cache[key]) <= 1:
                 del self.cache[key]
-            else:
-                a = 2
 
     def call(self, emails_passwords):
         for (email, password) in emails_passwords:

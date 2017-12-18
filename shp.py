@@ -9,6 +9,11 @@ PASSWORDS = ['hello1', 'hello22', 'h@llo22', 'h@llo223']
 
 
 def find_shortest_hamiltonian_path_in_complete_graph(passwords, debug=True):
+    # complexity is paramount! This script runs in factorial(n)
+
+    if len(passwords) > 6:  # 6! = 720 combinations.
+        return []
+
     map_edit_distance = {}
 
     # shortest hamiltonian path in complete graph. NP-complete.
