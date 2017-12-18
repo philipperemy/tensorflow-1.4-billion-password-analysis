@@ -27,3 +27,33 @@ Disclaimer: for research purposes only.
 ## Deep Learning
 
 - Stay tuned!
+
+### Map the password list for each email
+
+Generate the JSON files containing emails <-> list of passwords. Output folder is `~/BreachCompilationAnalysis`.
+
+```
+python3 read.py --breach_compilation_folder ~/BreachCompilation
+```
+ 
+- Make sure you have enough free memory (8GB should be enough).
+- It took 1h30m to run on a Intel(R) Core(TM) i7-6900K CPU @ 3.20GHz (on a single thread).
+- Uncompressed output is 13G.
+
+Output is of the form:
+
+```
+> less ReducePasswordsOnSimilarEmailsCallback-z-b.json # emails starting with zb.
+{
+    "zb-email1@yahoo.com": [
+        "pass1",
+        "pass2"
+    ],
+    "zb-email2@yahoo.com": [
+        "pass1",
+        "pass2",
+        "pass3"
+    ],
+    [...]
+}
+```
