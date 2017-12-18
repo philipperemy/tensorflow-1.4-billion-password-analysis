@@ -25,7 +25,9 @@ def find_shortest_hamiltonian_path_in_complete_graph(passwords, debug=True):
         map_edit_distance[(combo[1], combo[0])] = ed
 
     # factorial(n)
-    permutations = list(itertools.permutations(passwords))
+    # permutations = list(itertools.permutations(passwords))
+    permutations = list(filter(lambda x: len(x[0]) == min([len(a) for a in x]),
+                               list(itertools.permutations(passwords))))
 
     all_solutions = {}
     for permutation in permutations:

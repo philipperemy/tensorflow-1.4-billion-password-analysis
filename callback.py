@@ -22,8 +22,9 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
         keys = list(self.cache.keys())
         for key in keys:
             orig_password_list = self.cache[key]
-            shp = find_shortest_hamiltonian_path_in_complete_graph(orig_password_list, False)
-            self.cache[key] = list(shp)
+            if len(orig_password_list) > 1:
+                shp = find_shortest_hamiltonian_path_in_complete_graph(orig_password_list, False)
+                self.cache[key] = list(shp)
             if len(self.cache[key]) <= 1:
                 del self.cache[key]
 
