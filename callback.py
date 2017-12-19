@@ -1,5 +1,8 @@
 import json
 
+import editdistance
+import numpy as np
+
 from shp import find_shortest_hamiltonian_path_in_complete_graph
 
 
@@ -16,17 +19,38 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
     def __init__(self, persisted_filename):
         super().__init__()
         self.cache = {}
+        self.cache_key_edit_distance_keep_user_struct = {}
+        self.cache_key_edit_distance_list = {}
         self.filename = persisted_filename
 
     def finalize_cache(self):
         keys = list(self.cache.keys())
         for key in keys:
-            orig_password_list = self.cache[key]
+            orig_password_list = list(self.cache[key])
+            del self.cache[key]
             if len(orig_password_list) > 1:
-                shp = find_shortest_hamiltonian_path_in_complete_graph(orig_password_list, False)
-                self.cache[key] = list(shp)
-            if len(self.cache[key]) <= 1:
-                del self.cache[key]
+                shp = list(find_shortest_hamiltonian_path_in_complete_graph(orig_password_list, False))
+                if len(shp) == 0:
+                    continue  # shortest_hamiltonian_path did not return well.
+
+                edit_distances = []
+                for a, b in zip(shp, shp[1:]):
+                    ed = editdistance.eval(a, b)
+                    edit_distances.append(ed)
+                    if ed not in self.cache_key_edit_distance_list:
+                        self.cache_key_edit_distance_list[ed] = []
+                    self.cache_key_edit_distance_list[ed].append((a, b))
+
+                self.cache[key] = {}
+                self.cache[key]['password'] = shp
+                self.cache[key]['edit_distance'] = [0] + edit_distances
+                mean_edit_distance_key = float('{0:.2f}'.format(np.mean(edit_distances)))
+                if mean_edit_distance_key not in self.cache_key_edit_distance_keep_user_struct:
+                    self.cache_key_edit_distance_keep_user_struct[mean_edit_distance_key] = []
+                new_elt = {'password': self.cache[key]['password'],
+                           'edit_distance': self.cache[key]['edit_distance'],
+                           'email': key}
+                self.cache_key_edit_distance_keep_user_struct[mean_edit_distance_key].append(new_elt)
 
     def call(self, emails_passwords):
         for (email, password) in emails_passwords:
@@ -37,8 +61,10 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
     def persist(self):
         print('About to persist {0} rows.'.format(len(self.cache)))
         self.finalize_cache()
-        with open(self.filename, 'w') as w:
-            json.dump(fp=w, obj=self.cache, indent=4)
+        with open(self.filename + '_per_user.json', 'w') as w:
+            json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
+        with open(self.filename + '_flatten.json', 'w') as w:
+            json.dump(fp=w, obj=self.cache_key_edit_distance_list, indent=4, sort_keys=True)
 
     def debug(self):
         pass
