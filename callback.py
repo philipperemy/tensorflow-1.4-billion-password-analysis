@@ -1,4 +1,5 @@
 import json
+import os
 
 import editdistance
 import numpy as np
@@ -63,8 +64,20 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
         self.finalize_cache()
         with open(self.filename + '_per_user.json', 'w') as w:
             json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
-        with open(self.filename + '_flatten.json', 'w') as w:
-            json.dump(fp=w, obj=self.cache_key_edit_distance_list, indent=4, sort_keys=True)
+
+        sep = ' ||| '
+        for edit_distance in sorted(self.cache_key_edit_distance_list):
+            def csv_line_format(x):
+                return str(edit_distance) + sep + x[0] + sep + x[1] + '\n'
+
+            output_dir = os.path.join(os.path.expanduser('~/BreachCompilationAnalysis'), 'edit-distances')
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            csv_file = os.path.join(output_dir, str(edit_distance) + '.csv')
+            with open(csv_file, encoding='utf8', mode='a') as w:
+                password_pairs = self.cache_key_edit_distance_list[edit_distance]
+                lines = list(map(csv_line_format, password_pairs))
+                w.writelines(lines)
 
     def debug(self):
         pass

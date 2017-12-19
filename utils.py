@@ -35,7 +35,7 @@ def read_n_files(breach_compilation_folder, num_files, on_file_read_call_back_cl
     for current_filename in tqdm(all_filenames):
         if os.path.isfile(current_filename):
             suffix = slugify(current_filename.split('data')[-1])
-            output_filename = os.path.join(output_dir, callback_class_name + '-' + suffix)
+            output_filename = os.path.join(output_dir, suffix)
             callback = on_file_read_call_back_class(output_filename)
             with open(current_filename, 'r', encoding='utf8', errors='ignore') as r:
                 lines = r.readlines()
