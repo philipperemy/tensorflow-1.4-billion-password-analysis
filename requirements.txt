@@ -1,4 +1,6 @@
-tqdm==4.19.2
-unicode_slugify==0.1.3
+keras
+tensorflow
+tqdm
+unicode_slugify
 editdistance
 numpy

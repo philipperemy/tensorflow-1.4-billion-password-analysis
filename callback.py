@@ -74,6 +74,7 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             csv_file = os.path.join(output_dir, str(edit_distance) + '.csv')
+            print('Updating: ' + csv_file)
             with open(csv_file, encoding='utf8', mode='a') as w:
                 password_pairs = self.cache_key_edit_distance_list[edit_distance]
                 lines = list(map(csv_line_format, password_pairs))
