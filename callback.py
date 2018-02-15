@@ -60,7 +60,6 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             self.cache[email].add(password)
 
     def persist(self):
-        print('About to persist {0} rows.'.format(len(self.cache)))
         self.finalize_cache()
         with open(self.filename + '_per_user.json', 'w') as w:
             json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
