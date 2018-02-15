@@ -1,20 +1,9 @@
-import multiprocessing
 import os
 import shutil
-from functools import partial
 from glob import glob
 
 from slugify import slugify
-
-
-def parallel_function(f, sequence, num_threads=None):
-    from multiprocessing import Pool
-    pool = Pool(processes=num_threads)
-    result = pool.map(f, sequence)
-    cleaned = [x for x in result if x is not None]
-    pool.close()
-    pool.join()
-    return cleaned
+from tqdm import tqdm
 
 
 def extract_emails_and_passwords(txt_lines):
@@ -34,21 +23,6 @@ def read_all(breach_compilation_folder, on_file_read_call_back):
     read_n_files(breach_compilation_folder, None, on_file_read_call_back)
 
 
-def process_file(current_filename, output_dir, on_file_read_call_back_class):
-    print(current_filename)
-    if os.path.isfile(current_filename):
-        suffix = slugify(current_filename.split('data')[-1])
-        output_filename = os.path.join(output_dir, suffix)
-        callback = on_file_read_call_back_class(output_filename)
-        with open(current_filename, 'r', encoding='utf8', errors='ignore') as r:
-            lines = r.readlines()
-            emails_passwords = extract_emails_and_passwords(lines)
-            callback.call(emails_passwords)
-        print('Persisting {0} rows'.format(len(callback.cache)))
-        print('Done for filename {0}'.format(current_filename))
-        callback.persist()
-
-
 def read_n_files(breach_compilation_folder, num_files, on_file_read_call_back_class):
     breach_compilation_folder = os.path.join(os.path.expanduser(breach_compilation_folder), 'data')
     all_filenames = glob(breach_compilation_folder + '/**/*', recursive=True)
@@ -66,10 +40,15 @@ def read_n_files(breach_compilation_folder, num_files, on_file_read_call_back_cl
     if num_files is not None:
         all_filenames = all_filenames[0:num_files]
 
-    num_threads = multiprocessing.cpu_count() // 2
-    print('Going to run on {0} threads.'.format(num_threads))
-
-    process_file_partial = partial(process_file,
-                                   output_dir=output_dir,
-                                   on_file_read_call_back_class=on_file_read_call_back_class)
-    parallel_function(process_file_partial, all_filenames, num_threads)
+    bar = tqdm(all_filenames)
+    for current_filename in bar:
+        if os.path.isfile(current_filename):
+            suffix = slugify(current_filename.split('data')[-1])
+            output_filename = os.path.join(output_dir, suffix)
+            callback = on_file_read_call_back_class(output_filename)
+            with open(current_filename, 'r', encoding='utf8', errors='ignore') as r:
+                lines = r.readlines()
+                emails_passwords = extract_emails_and_passwords(lines)
+                callback.call(emails_passwords)
+            bar.set_description('Persisting {0} rows'.format(len(callback.cache)))
+            callback.persist()
