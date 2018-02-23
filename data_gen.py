@@ -19,6 +19,10 @@ def get_vocab_size():
     return len(get_token_indices())
 
 
+def discard_password(password):
+    return len(password) > MAX_PASSWORD_LENGTH or ' ' in password
+
+
 class CharacterTable(object):
     """Given a set of characters:
     + Encode them to a one hot integer representation
@@ -42,11 +46,15 @@ class CharacterTable(object):
                 used to keep the # of rows for each data the same.
         """
         x = np.zeros((num_rows, len(self.chars)))
-        for i, c in enumerate(C):
-            if c not in self.char_indices:
-                x[i, self.char_indices['？']] = 1
-            else:
-                x[i, self.char_indices[c]] = 1
+        for i in range(num_rows):
+            try:
+                c = C[i]
+                if c not in self.char_indices:
+                    x[i, self.char_indices['？']] = 1
+                else:
+                    x[i, self.char_indices[c]] = 1
+            except IndexError:
+                x[i, self.char_indices[' ']] = 1
         return x
 
     def decode(self, x, calc_argmax=True):
@@ -73,7 +81,7 @@ def build_vocabulary():
     with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
         for l in tqdm(r.readlines(), desc='Build Vocabulary'):
             line_id, x, y = l.decode('utf8').strip().split(' ||| ')
-            if len(y) > MAX_PASSWORD_LENGTH or len(x) > MAX_PASSWORD_LENGTH:
+            if discard_password(y) or discard_password(x):
                 continue
             for element in list(y + x):
                 if element not in vocabulary:
@@ -81,8 +89,11 @@ def build_vocabulary():
                 vocabulary[element] += 1
     vocabulary_sorted_list = sorted(dict(Counter(vocabulary).most_common(MAX_VOCABULARY)).keys())
     oov_char = '？'
+    pad_char = ' '
     print('Out of vocabulary (OOV) char is {}'.format(oov_char))
+    print('Pad char is "{}"'.format(pad_char))
     vocabulary_sorted_list.append(oov_char)  # out of vocabulary.
+    vocabulary_sorted_list.append(pad_char)  # pad char.
     print('Vocabulary = ' + ' '.join(vocabulary_sorted_list))
     token_indices = dict((c, i) for (c, i) in enumerate(vocabulary_sorted_list))
     indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
@@ -102,7 +113,7 @@ def stream_from_file():
     with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
         for l in r.readlines():
             _, x, y = l.decode('utf8').strip().split(' ||| ')
-            if len(y) > MAX_PASSWORD_LENGTH or len(x) > MAX_PASSWORD_LENGTH:
+            if discard_password(y) or discard_password(x):
                 continue
             yield x.strip(), y.strip()
 
