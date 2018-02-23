@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
+import multiprocessing
 import os
 
 import numpy as np
@@ -15,10 +15,7 @@ OUTPUT_MAX_LEN = MAX_PASSWORD_LENGTH
 chars, c_table = get_chars_and_ctable()
 
 
-def gen_large_chunk(inputs_, targets_, chunk_size):
-    print('x.shape =', (chunk_size, MAX_PASSWORD_LENGTH, len(chars)))
-    print('y.shape =', (chunk_size, MAX_PASSWORD_LENGTH, len(chars)))
-
+def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
     random_indices = np.random.choice(a=range(len(inputs_)), size=chunk_size, replace=True)
     sub_inputs = inputs_[random_indices]
     sub_targets = targets_[random_indices]
@@ -30,6 +27,36 @@ def gen_large_chunk(inputs_, targets_, chunk_size):
         x[i_] = c_table.encode(element, MAX_PASSWORD_LENGTH)
     for i_, element in enumerate(sub_targets):
         y[i_] = c_table.encode(element, MAX_PASSWORD_LENGTH)
+
+    split_at = len(x) - len(x) // 10
+    (x_train, x_val) = x[:split_at], x[split_at:]
+    (y_train, y_val) = y[:split_at], y[split_at:]
+
+    return x_train, y_train, x_val, y_val
+
+
+def gen_large_chunk_multi_thread(inputs_, targets_, chunk_size):
+    ''' This function is actually slower than gen_large_chunk_single_thread()'''
+
+    def parallel_function(f, sequence, num_threads=None):
+        from multiprocessing.pool import ThreadPool
+        pool = ThreadPool(processes=num_threads)
+        result = pool.map(f, sequence)
+        cleaned = np.array([x for x in result if x is not None])
+        pool.close()
+        pool.join()
+        return cleaned
+
+    random_indices = np.random.choice(a=range(len(inputs_)), size=chunk_size, replace=True)
+    sub_inputs = inputs_[random_indices]
+    sub_targets = targets_[random_indices]
+
+    def encode(elt):
+        return c_table.encode(elt, MAX_PASSWORD_LENGTH)
+
+    num_threads = multiprocessing.cpu_count() // 2
+    x = parallel_function(encode, sub_inputs, num_threads=num_threads)
+    y = parallel_function(encode, sub_targets, num_threads=num_threads)
 
     split_at = len(x) - len(x) // 10
     (x_train, x_val) = x[:split_at], x[split_at:]
@@ -53,7 +80,7 @@ print(targets.shape)
 # Try replacing GRU, or SimpleRNN.
 RNN = layers.LSTM
 HIDDEN_SIZE = 256
-BATCH_SIZE = 128
+BATCH_SIZE = 256
 LAYERS = 1
 
 print('Build model...')
@@ -102,7 +129,7 @@ model.summary()
 
 # Train the model each generation and show predictions against the validation data set.
 for iteration in range(1, int(1e9)):
-    x_train, y_train, x_val, y_val = gen_large_chunk(inputs, targets, chunk_size=BATCH_SIZE * 200)
+    x_train, y_train, x_val, y_val = gen_large_chunk_single_thread(inputs, targets, chunk_size=BATCH_SIZE * 500)
     print()
     print('-' * 50)
     print('Iteration', iteration)
