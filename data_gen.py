@@ -43,10 +43,10 @@ class CharacterTable(object):
         """
         x = np.zeros((num_rows, len(self.chars)))
         for i, c in enumerate(C):
-            try:
+            if c not in self.char_indices:
+                c = '？'
+            else:
                 x[i, self.char_indices[c]] = 1
-            except:
-                a = 2
         return x
 
     def decode(self, x, calc_argmax=True):

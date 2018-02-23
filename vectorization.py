@@ -29,8 +29,8 @@ while len(inputs) < TRAINING_SIZE:
     inputs.append(x_)
     targets.append(y_)
 
-print('x.shape=', (len(inputs), MAX_PASSWORD_LENGTH, len(chars)))
-print('y.shape=', (len(inputs), MAX_PASSWORD_LENGTH, len(chars)))
+print('x.shape =', (len(inputs), MAX_PASSWORD_LENGTH, len(chars)))
+print('y.shape =', (len(inputs), MAX_PASSWORD_LENGTH, len(chars)))
 
 x = np.zeros((len(inputs), MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
 y = np.zeros((len(inputs), MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
