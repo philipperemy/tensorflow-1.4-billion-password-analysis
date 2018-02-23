@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import argparse
 import multiprocessing
 import os
 
@@ -7,12 +7,31 @@ import numpy as np
 from keras import layers
 from keras.models import Sequential
 
-from constants import MAX_PASSWORD_LENGTH
+from constants import MAX_PASSWORD_LENGTH, MAX_VOCABULARY
 from data_gen import get_chars_and_ctable, colors
 
 INPUT_MAX_LEN = MAX_PASSWORD_LENGTH
 OUTPUT_MAX_LEN = MAX_PASSWORD_LENGTH
 chars, c_table = get_chars_and_ctable()
+
+
+def get_arguments(parser):
+    args = None
+    try:
+        args = parser.parse_args()
+    except:
+        parser.print_help()
+        exit(1)
+    return args
+
+
+def get_script_arguments():
+    parser = argparse.ArgumentParser(description='Training a password model.')
+    parser.add_argument('--hidden_size', default=256, type=int)
+    parser.add_argument('--batch_size', default=256, type=int)
+    args = get_arguments(parser)
+    print(args)
+    return args
 
 
 def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
@@ -33,6 +52,18 @@ def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
     (y_train, y_val) = y[:split_at], y[split_at:]
 
     return x_train, y_train, x_val, y_val
+
+
+def predict_top_most_likely_passwords(model_, rowx_, n_):
+    p_ = model_.predict(rowx_, batch_size=32, verbose=0)[0]
+    most_likely_passwords = []
+    for ii in range(n_):
+        # of course should take the edit distance constraint.
+        pa = np.array([np.random.choice(a=range(MAX_VOCABULARY + 2), size=1, p=p_[jj, :])
+                       for jj in range(MAX_PASSWORD_LENGTH)]).flatten()
+        most_likely_passwords.append(c_table.decode(pa, calc_argmax=False))
+    return most_likely_passwords
+    # Could sample 1000 and take the most_common()
 
 
 def gen_large_chunk_multi_thread(inputs_, targets_, chunk_size):
@@ -77,20 +108,22 @@ print('Data:')
 print(inputs.shape)
 print(targets.shape)
 
-# Try replacing GRU, or SimpleRNN.
+ARGS = get_script_arguments()
+
+# Try replacing GRU.
 RNN = layers.LSTM
-HIDDEN_SIZE = 256
-BATCH_SIZE = 256
-LAYERS = 1
+HIDDEN_SIZE = ARGS.hidden_size
+BATCH_SIZE = ARGS.batch_size
 
 print('Build model...')
 
 
 def model_1():
+    num_layers = 1
     m = Sequential()
     m.add(RNN(HIDDEN_SIZE, input_shape=(INPUT_MAX_LEN, len(chars))))
     m.add(layers.RepeatVector(OUTPUT_MAX_LEN))
-    for _ in range(LAYERS):
+    for _ in range(num_layers):
         m.add(RNN(HIDDEN_SIZE, return_sequences=True))
     m.add(layers.TimeDistributed(layers.Dense(len(chars))))
     m.add(layers.Activation('softmax'))
@@ -114,7 +147,8 @@ def model_3():
     from keras.layers.core import Dense, Reshape
     from keras.layers.wrappers import TimeDistributed
     m.add(RNN(HIDDEN_SIZE, input_shape=(INPUT_MAX_LEN, len(chars))))
-    m.add(Dense(OUTPUT_MAX_LEN * len(chars)))
+    m.add(Dense(OUTPUT_MAX_LEN * len(chars), activation='relu'))
+    m.add(Dense(OUTPUT_MAX_LEN * len(chars), activation='relu'))
     m.add(Reshape((OUTPUT_MAX_LEN, len(chars))))
     m.add(TimeDistributed(Dense(len(chars), activation='softmax')))
     return m
@@ -133,6 +167,8 @@ for iteration in range(1, int(1e9)):
     print()
     print('-' * 50)
     print('Iteration', iteration)
+    # TODO: we need to update the loss to take into account that x!=y.
+    # TODO: We could actually if it's an ADD, DEL or MOD.
     model.fit(x_train, y_train,
               batch_size=BATCH_SIZE,
               epochs=5,
@@ -146,6 +182,7 @@ for iteration in range(1, int(1e9)):
         q = c_table.decode(rowx[0])
         correct = c_table.decode(rowy[0])
         guess = c_table.decode(preds[0], calc_argmax=False)
+        top_passwords = predict_top_most_likely_passwords(model, rowx, 10)
         # p = model.predict(rowx, batch_size=32, verbose=0)[0]
         # p.shape (12, 82)
         # [np.random.choice(a=range(82), size=1, p=p[i, :]) for i in range(12)]
@@ -155,8 +192,11 @@ for iteration in range(1, int(1e9)):
         print('new    :', correct)
         print('former :', q)
         print('guess  :', guess, end=' ')
-        if correct == guess:
+
+        # if correct == guess:
+        if correct.strip() in [vv.strip() for vv in top_passwords]:
             print(colors.ok + '☑' + colors.close)
         else:
             print(colors.fail + '☒' + colors.close)
+        print('top    :', ', '.join(top_passwords))
         print('---')
