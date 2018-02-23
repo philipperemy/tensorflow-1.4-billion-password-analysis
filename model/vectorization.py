@@ -1,8 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 
-from data_gen import LazyDataLoader
-from model_utils import get_TOKEN_INDICES, get_chars_and_ctable, build_vocabulary
+from model.data_gen import LazyDataLoader, build_vocabulary, get_token_indices, get_chars_and_ctable
 
 build_vocabulary()
 
@@ -12,7 +11,7 @@ DATA_LOADER = LazyDataLoader()
 
 INPUT_MAX_LEN, OUTPUT_MAX_LEN, TRAINING_SIZE = DATA_LOADER.statistics()
 
-TOKEN_INDICES = get_TOKEN_INDICES()
+TOKEN_INDICES = get_token_indices()
 
 chars, c_table = get_chars_and_ctable()
 
