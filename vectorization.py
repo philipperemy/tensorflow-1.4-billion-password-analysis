@@ -1,6 +1,9 @@
+from time import sleep
+
 import numpy as np
 from tqdm import tqdm
 
+from constants import MAX_PASSWORD_LENGTH
 from data_gen import LazyDataLoader, build_vocabulary, get_token_indices, get_chars_and_ctable
 
 print('Building vocabulary...')
@@ -11,7 +14,7 @@ print('Vectorization...')
 
 DATA_LOADER = LazyDataLoader()
 
-INPUT_MAX_LEN, OUTPUT_MAX_LEN, TRAINING_SIZE = DATA_LOADER.statistics()
+_, _, TRAINING_SIZE = DATA_LOADER.statistics()
 
 TOKEN_INDICES = get_token_indices()
 
@@ -26,15 +29,17 @@ while len(inputs) < TRAINING_SIZE:
     inputs.append(x_)
     targets.append(y_)
 
-print('x.shape=', (len(inputs), INPUT_MAX_LEN, len(chars)))
-print('y.shape=', (len(inputs), OUTPUT_MAX_LEN, len(chars)))
-x = np.zeros((len(inputs), INPUT_MAX_LEN, len(chars)), dtype=np.bool)
-y = np.zeros((len(inputs), OUTPUT_MAX_LEN, len(chars)), dtype=np.bool)
+print('x.shape=', (len(inputs), MAX_PASSWORD_LENGTH, len(chars)))
+print('y.shape=', (len(inputs), MAX_PASSWORD_LENGTH, len(chars)))
 
+x = np.zeros((len(inputs), MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
+y = np.zeros((len(inputs), MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
+
+sleep(1)
 for i, element in enumerate(tqdm(inputs, desc='inputs')):
-    x[i] = c_table.encode(element, INPUT_MAX_LEN)
+    x[i] = c_table.encode(element, MAX_PASSWORD_LENGTH)
 for i, element in enumerate(tqdm(targets, desc='targets')):
-    y[i] = c_table.encode(element, OUTPUT_MAX_LEN)
+    y[i] = c_table.encode(element, MAX_PASSWORD_LENGTH)
 
 indices = np.arange(len(y))
 np.random.shuffle(indices)

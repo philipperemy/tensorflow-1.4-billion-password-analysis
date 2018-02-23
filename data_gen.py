@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 from tqdm import tqdm
 
-from constants import EDIT_DISTANCE_FILENAME, DISCARD_PASSWORD_IF_LEN_GREATER_THAN, MAX_VOCABULARY
+from constants import EDIT_DISTANCE_FILENAME, MAX_PASSWORD_LENGTH, MAX_VOCABULARY
 
 
 def get_indices_token():
@@ -43,7 +43,10 @@ class CharacterTable(object):
         """
         x = np.zeros((num_rows, len(self.chars)))
         for i, c in enumerate(C):
-            x[i, self.char_indices[c]] = 1
+            try:
+                x[i, self.char_indices[c]] = 1
+            except:
+                a = 2
         return x
 
     def decode(self, x, calc_argmax=True):
@@ -69,17 +72,21 @@ def build_vocabulary():
     print('Reading file {}.'.format(EDIT_DISTANCE_FILENAME))
     with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
         for l in tqdm(r.readlines(), desc='Build Vocabulary'):
-            line_id, y, x = l.decode('utf8').strip().split(' ||| ')
-            if len(y) > DISCARD_PASSWORD_IF_LEN_GREATER_THAN or len(x) > DISCARD_PASSWORD_IF_LEN_GREATER_THAN:
+            line_id, x, y = l.decode('utf8').strip().split(' ||| ')
+            if len(y) > MAX_PASSWORD_LENGTH or len(x) > MAX_PASSWORD_LENGTH:
                 continue
             for element in list(y + x):
                 if element not in vocabulary:
                     vocabulary[element] = 0
                 vocabulary[element] += 1
     vocabulary_sorted_list = sorted(dict(Counter(vocabulary).most_common(MAX_VOCABULARY)).keys())
+    oov_char = '？'
+    print('Out of vocabulary (OOV) char is {}'.format(oov_char))
+    vocabulary_sorted_list.append(oov_char)  # out of vocabulary.
     print('Vocabulary = ' + ' '.join(vocabulary_sorted_list))
     token_indices = dict((c, i) for (c, i) in enumerate(vocabulary_sorted_list))
     indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
+    assert len(token_indices) == len(indices_token)
 
     with open('/tmp/token_indices.pkl', 'wb') as w:
         pickle.dump(obj=token_indices, file=w)
@@ -94,7 +101,9 @@ def build_vocabulary():
 def stream_from_file():
     with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
         for l in r.readlines():
-            ed, x, y = l.decode('utf8').strip().split(' ||| ')
+            _, x, y = l.decode('utf8').strip().split(' ||| ')
+            if len(y) > MAX_PASSWORD_LENGTH or len(x) > MAX_PASSWORD_LENGTH:
+                continue
             yield x.strip(), y.strip()
 
 
