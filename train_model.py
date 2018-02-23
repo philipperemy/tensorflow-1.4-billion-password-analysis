@@ -2,9 +2,11 @@
 import argparse
 import multiprocessing
 import os
+from collections import Counter
 
 import numpy as np
 from keras import layers
+from keras.layers import Dropout
 from keras.models import Sequential
 
 from constants import MAX_PASSWORD_LENGTH, MAX_VOCABULARY
@@ -52,6 +54,11 @@ def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
     (y_train, y_val) = y[:split_at], y[split_at:]
 
     return x_train, y_train, x_val, y_val
+
+
+def predict_top_most_likely_passwords_monte_carlo(model_, rowx_, n_, mc_samples=10000):
+    samples = predict_top_most_likely_passwords(model_, rowx_, mc_samples)
+    return dict(Counter(samples).most_common(n_)).keys()
 
 
 def predict_top_most_likely_passwords(model_, rowx_, n_):
@@ -148,7 +155,9 @@ def model_3():
     from keras.layers.wrappers import TimeDistributed
     m.add(RNN(HIDDEN_SIZE, input_shape=(INPUT_MAX_LEN, len(chars))))
     m.add(Dense(OUTPUT_MAX_LEN * len(chars), activation='relu'))
+    m.add(Dropout(0.5))
     m.add(Dense(OUTPUT_MAX_LEN * len(chars), activation='relu'))
+    m.add(Dropout(0.5))
     m.add(Reshape((OUTPUT_MAX_LEN, len(chars))))
     m.add(TimeDistributed(Dense(len(chars), activation='softmax')))
     return m
@@ -169,6 +178,9 @@ for iteration in range(1, int(1e9)):
     print('Iteration', iteration)
     # TODO: we need to update the loss to take into account that x!=y.
     # TODO: We could actually if it's an ADD, DEL or MOD.
+    # TODO: Big improvement. We always have hello => hello1 right but never hello => 1hello
+    # It's mainly because we pad after and never before. So the model has to shift all the characters.
+    # And the risk for doing so is really since its a characted based cross entropy loss.
     model.fit(x_train, y_train,
               batch_size=BATCH_SIZE,
               epochs=5,
@@ -182,7 +194,7 @@ for iteration in range(1, int(1e9)):
         q = c_table.decode(rowx[0])
         correct = c_table.decode(rowy[0])
         guess = c_table.decode(preds[0], calc_argmax=False)
-        top_passwords = predict_top_most_likely_passwords(model, rowx, 10)
+        top_passwords = predict_top_most_likely_passwords_monte_carlo(model, rowx, 100)
         # p = model.predict(rowx, batch_size=32, verbose=0)[0]
         # p.shape (12, 82)
         # [np.random.choice(a=range(82), size=1, p=p[i, :]) for i in range(12)]
