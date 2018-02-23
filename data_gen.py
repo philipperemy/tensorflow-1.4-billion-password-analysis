@@ -44,7 +44,7 @@ class CharacterTable(object):
         x = np.zeros((num_rows, len(self.chars)))
         for i, c in enumerate(C):
             if c not in self.char_indices:
-                c = '？'
+                x[i, self.char_indices['？']] = 1
             else:
                 x[i, self.char_indices[c]] = 1
         return x

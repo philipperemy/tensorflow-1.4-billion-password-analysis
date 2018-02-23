@@ -2,37 +2,61 @@
 
 
 import os
+import random
 
 import numpy as np
 from keras import layers
 from keras.models import Sequential
-from six.moves import range
 
+from constants import MAX_PASSWORD_LENGTH
 from data_gen import LazyDataLoader, get_chars_and_ctable, colors
 
 DATA_LOADER = LazyDataLoader()
 
 INPUT_MAX_LEN, OUTPUT_MAX_LEN, TRAINING_SIZE = DATA_LOADER.statistics()
 
-chars, ctable = get_chars_and_ctable()
+chars, c_table = get_chars_and_ctable()
 
-if not os.path.exists('x_y.npz'):
+
+def gen_large_chunk(inputs, targets, chunk_size):
+    print('x.shape =', (chunk_size, MAX_PASSWORD_LENGTH, len(chars)))
+    print('y.shape =', (chunk_size, MAX_PASSWORD_LENGTH, len(chars)))
+
+    # unless we have scipy.sparse matrices, it's too big to fit in memory.
+    # lets do lazy convert (only when we present the batch inside the training module).
+
+    random_indices = np.random.choice(a=range(len(inputs)), size=chunk_size, replace=True)
+    sub_inputs = inputs[random_indices]
+    sub_targets = targets[random_indices]
+
+    x = np.zeros((chunk_size, MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
+    y = np.zeros((chunk_size, MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
+
+    for i_, element in enumerate(sub_inputs):
+        x[i_] = c_table.encode(element, MAX_PASSWORD_LENGTH)
+    for i_, element in enumerate(sub_targets):
+        y[i_] = c_table.encode(element, MAX_PASSWORD_LENGTH)
+
+    # Explicitly set apart 10% for validation data that we never train over.
+    split_at = len(x) - len(x) // 10
+    (x_train, x_val) = x[:split_at], x[split_at:]
+    (y_train, y_val) = y[:split_at], y[split_at:]
+
+    print('Done... File is /tmp/x_y.npz')
+    return x_train, y_train, x_val, y_val
+
+
+if not os.path.exists('/tmp/x_y.npz'):
     raise Exception('Please run the vectorization script before.')
 
 print('Loading data from prefetch...')
-data = np.load('x_y.npz')
-x_train = data['x_train']
-x_val = data['x_val']
-y_train = data['y_train']
-y_val = data['y_val']
+data = np.load('/tmp/x_y.npz')
+inputs = data['inputs']
+targets = data['targets']
 
-print('Training Data:')
-print(x_train.shape)
-print(y_train.shape)
-
-print('Validation Data:')
-print(x_val.shape)
-print(y_val.shape)
+print('Data:')
+print(inputs.shape)
+print(targets.shape)
 
 # Try replacing GRU, or SimpleRNN.
 RNN = layers.LSTM
@@ -86,6 +110,7 @@ model.summary()
 
 # Train the model each generation and show predictions against the validation data set.
 for iteration in range(1, 200):
+    x_train, y_train, x_val, y_val = gen_large_chunk(inputs, targets, chunk_size=BATCH_SIZE * 1000)
     print()
     print('-' * 50)
     print('Iteration', iteration)
@@ -99,9 +124,9 @@ for iteration in range(1, 200):
         ind = np.random.randint(0, len(x_val))
         rowx, rowy = x_val[np.array([ind])], y_val[np.array([ind])]  # replace by x_val, y_val
         preds = model.predict_classes(rowx, verbose=0)
-        q = ctable.decode(rowx[0])
-        correct = ctable.decode(rowy[0])
-        guess = ctable.decode(preds[0], calc_argmax=False)
+        q = c_table.decode(rowx[0])
+        correct = c_table.decode(rowy[0])
+        guess = c_table.decode(preds[0], calc_argmax=False)
         print('T', correct)
         if correct == guess:
             print(colors.ok + '☑' + colors.close, end=" ")
