@@ -1,16 +1,18 @@
 import pickle
+from collections import Counter
 
 import numpy as np
+from tqdm import tqdm
 
-from constants import EDIT_DISTANCE_FILENAME
+from constants import EDIT_DISTANCE_FILENAME, DISCARD_PASSWORD_IF_LEN_GREATER_THAN, MAX_VOCABULARY
 
 
 def get_indices_token():
-    return pickle.load(open('indices_token.pkl', 'rb'))
+    return pickle.load(open('/tmp/indices_token.pkl', 'rb'))
 
 
 def get_token_indices():
-    return pickle.load(open('token_indices.pkl', 'rb'))
+    return pickle.load(open('/tmp/token_indices.pkl', 'rb'))
 
 
 def get_vocab_size():
@@ -63,27 +65,30 @@ def get_chars_and_ctable():
 
 
 def build_vocabulary():
-    vocabulary = set()
+    vocabulary = {}
+    print('Reading file {}.'.format(EDIT_DISTANCE_FILENAME))
     with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
-        for l in r.readlines():
+        for l in tqdm(r.readlines(), desc='Build Vocabulary'):
             line_id, y, x = l.decode('utf8').strip().split(' ||| ')
-            for element in list(y):
-                vocabulary.add(element)
-            for element in list(x):
-                vocabulary.add(element)
-    vocabulary = sorted(list(vocabulary))
-    print(vocabulary)
-    token_indices = dict((c, i) for (c, i) in enumerate(vocabulary))
-    indices_token = dict((i, c) for (c, i) in enumerate(vocabulary))
+            if len(y) > DISCARD_PASSWORD_IF_LEN_GREATER_THAN or len(x) > DISCARD_PASSWORD_IF_LEN_GREATER_THAN:
+                continue
+            for element in list(y + x):
+                if element not in vocabulary:
+                    vocabulary[element] = 0
+                vocabulary[element] += 1
+    vocabulary_sorted_list = sorted(dict(Counter(vocabulary).most_common(MAX_VOCABULARY)).keys())
+    print('Vocabulary = ' + ' '.join(vocabulary_sorted_list))
+    token_indices = dict((c, i) for (c, i) in enumerate(vocabulary_sorted_list))
+    indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
 
-    with open('token_indices.pkl', 'wb') as w:
+    with open('/tmp/token_indices.pkl', 'wb') as w:
         pickle.dump(obj=token_indices, file=w)
 
-    with open('indices_token.pkl', 'wb') as w:
+    with open('/tmp/indices_token.pkl', 'wb') as w:
         pickle.dump(obj=indices_token, file=w)
 
-    print('Done... File is token_indices.pkl')
-    print('Done... File is indices_token.pkl')
+    print('Done... File is /tmp/token_indices.pkl')
+    print('Done... File is /tmp/indices_token.pkl')
 
 
 def stream_from_file():

@@ -8,7 +8,7 @@ from keras import layers
 from keras.models import Sequential
 from six.moves import range
 
-from model.data_gen import LazyDataLoader, get_chars_and_ctable, colors
+from data_gen import LazyDataLoader, get_chars_and_ctable, colors
 
 DATA_LOADER = LazyDataLoader()
 

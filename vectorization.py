@@ -1,7 +1,9 @@
 import numpy as np
 from tqdm import tqdm
 
-from model.data_gen import LazyDataLoader, build_vocabulary, get_token_indices, get_chars_and_ctable
+from data_gen import LazyDataLoader, build_vocabulary, get_token_indices, get_chars_and_ctable
+
+print('Building vocabulary...')
 
 build_vocabulary()
 
@@ -24,6 +26,8 @@ while len(inputs) < TRAINING_SIZE:
     inputs.append(x_)
     targets.append(y_)
 
+print('x.shape=', (len(inputs), INPUT_MAX_LEN, len(chars)))
+print('y.shape=', (len(inputs), OUTPUT_MAX_LEN, len(chars)))
 x = np.zeros((len(inputs), INPUT_MAX_LEN, len(chars)), dtype=np.bool)
 y = np.zeros((len(inputs), OUTPUT_MAX_LEN, len(chars)), dtype=np.bool)
 
@@ -42,6 +46,6 @@ split_at = len(x) - len(x) // 10
 (x_train, x_val) = x[:split_at], x[split_at:]
 (y_train, y_val) = y[:split_at], y[split_at:]
 
-np.savez_compressed('x_y.npz', x_train=x_train, x_val=x_val, y_train=y_train, y_val=y_val)
+np.savez_compressed('/tmp/x_y.npz', x_train=x_train, x_val=x_val, y_train=y_train, y_val=y_val)
 
-print('Done... File is x_y.npz')
+print('Done... File is /tmp/x_y.npz')
