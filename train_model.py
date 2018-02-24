@@ -180,7 +180,11 @@ for iteration in range(1, int(1e9)):
     # TODO: We could actually if it's an ADD, DEL or MOD.
     # TODO: Big improvement. We always have hello => hello1 right but never hello => 1hello
     # It's mainly because we pad after and never before. So the model has to shift all the characters.
-    # And the risk for doing so is really since its a characted based cross entropy loss.
+    # And the risk for doing so is really since its a character based cross entropy loss.
+    # Even though accuracy is very high it does not really prove things since Identity would have a high
+    # Accuracy too.
+    # One way to do that is to predict the ADD/DEL/MOD op along with the character of interest and the index
+    # The index can just be a softmax over the indices of the password array, augmented (with a convention)
     model.fit(x_train, y_train,
               batch_size=BATCH_SIZE,
               epochs=5,
