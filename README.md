@@ -32,7 +32,7 @@ Process the data and run the first deep learning model:
 ```
 # make sure to install the python deps first. Virtual env are recommended here.
 # virtualenv -p python3 venv3; source venv3/bin/activate; pip install -r requirements.txt
-# Remove "--max_num_files 100" to process the whole dataset (few hours and 20GB of free disk space are required.)
+# Remove "--max_num_files 100" to process the whole dataset (few hours and 50GB of free disk space are required.)
 ./process_and_train.sh <BreachCompilation path>
 ```
 
@@ -119,4 +119,4 @@ If the dataset is too big for you, you can set `max_num_files` to something betw
  
 - Make sure you have enough free memory (8GB should be enough).
 - It took 1h30m to run on a Intel(R) Core(TM) i7-6900K CPU @ 3.20GHz (on a single thread).
-- Uncompressed output is 13G.
+- Uncompressed output is around 45G.
