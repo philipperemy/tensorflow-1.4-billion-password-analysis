@@ -32,6 +32,7 @@ Process the data and run the first deep learning model:
 ```
 # make sure to install the python deps first. Virtual env are recommended here.
 # virtualenv -p python3 venv3; source venv3/bin/activate; pip install -r requirements.txt
+# Remove "--max_num_files 100" to process the whole dataset (few hours and 20GB of free disk space are required.)
 ./process_and_train.sh <BreachCompilation path>
 ```
 
