@@ -1,20 +1,25 @@
 # -*- coding: utf-8 -*-
 import argparse
 import multiprocessing
-import os
 from collections import Counter
 
 import numpy as np
+import os
 from keras import layers
 from keras.layers import Dropout
 from keras.models import Sequential
 
-from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
 from data_gen import get_chars_and_ctable, colors
+from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
 
 INPUT_MAX_LEN = ENCODING_MAX_PASSWORD_LENGTH
 OUTPUT_MAX_LEN = ENCODING_MAX_PASSWORD_LENGTH
-chars, c_table = get_chars_and_ctable()
+
+try:
+    chars, c_table = get_chars_and_ctable()
+except FileNotFoundError:
+    print('Run first run_encoding.py to generate the required files.')
+    exit(1)
 
 
 def get_arguments(parser):
@@ -31,7 +36,7 @@ def get_script_arguments():
     parser = argparse.ArgumentParser(description='Training a password model.')
     # Something like: /home/premy/BreachCompilationAnalysis/edit-distances/1.csv
     # Result of run_data_processing.py.
-    parser.add_argument('--training_filename', required=True, type=str)
+    # parser.add_argument('--training_filename', required=True, type=str)
     parser.add_argument('--hidden_size', default=256, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     args = get_arguments(parser)
