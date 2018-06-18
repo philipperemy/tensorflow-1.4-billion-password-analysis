@@ -1,8 +1,8 @@
 import json
-import os
 
 import editdistance
 import numpy as np
+import os
 
 from shp import find_shortest_hamiltonian_path_in_complete_graph
 
@@ -17,14 +17,17 @@ class Callback:
 
 
 class ReducePasswordsOnSimilarEmailsCallback(Callback):
-    def __init__(self, persisted_filename):
+    NAME = 'reduce-passwords-on-similar-emails'
+
+    def __init__(self, persisted_filename, output_folder):
         super().__init__()
         self.cache = {}
         self.cache_key_edit_distance_keep_user_struct = {}
         self.cache_key_edit_distance_list = {}
         self.filename = persisted_filename
+        self.output_folder = output_folder
 
-    def finalize_cache(self):
+    def _finalize_cache(self):
         keys = list(self.cache.keys())
         for key in keys:
             orig_password_list = list(self.cache[key])
@@ -60,8 +63,7 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             self.cache[email].add(password)
 
     def persist(self):
-        print('About to persist {0} rows.'.format(len(self.cache)))
-        self.finalize_cache()
+        self._finalize_cache()
         with open(self.filename + '_per_user.json', 'w') as w:
             json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
 
@@ -70,16 +72,12 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             def csv_line_format(x):
                 return str(edit_distance) + sep + x[0] + sep + x[1] + '\n'
 
-            output_dir = os.path.join(os.path.expanduser('~/BreachCompilationAnalysis'), 'edit-distances')
+            output_dir = os.path.join(os.path.expanduser(self.output_folder), 'edit-distances')
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             csv_file = os.path.join(output_dir, str(edit_distance) + '.csv')
-            print('Updating: ' + csv_file)
+            # print('Updating: ' + csv_file)
             with open(csv_file, encoding='utf8', mode='a') as w:
                 password_pairs = self.cache_key_edit_distance_list[edit_distance]
                 lines = list(map(csv_line_format, password_pairs))
                 w.writelines(lines)
-
-    def debug(self):
-        pass
-        # print('{0} total number of unique emails.'.format(len(self.cache)))
