@@ -41,7 +41,7 @@ def process(breach_compilation_folder,
     analysis_folder = os.path.expanduser(output_folder)
     output_dir = os.path.join(analysis_folder, callback_class_name)
     try:
-        print('CLEAN OUTPUT FOLDER: {0}.'.format(analysis_folder))
+        print('OUTPUT FOLDER: {0}.'.format(analysis_folder))
         shutil.rmtree(analysis_folder)
     except:
         pass
