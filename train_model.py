@@ -9,7 +9,7 @@ from keras import layers
 from keras.layers import Dropout
 from keras.models import Sequential
 
-from constants import MAX_PASSWORD_LENGTH, MAX_VOCABULARY
+from train_constants import MAX_PASSWORD_LENGTH, MAX_VOCABULARY
 from data_gen import get_chars_and_ctable, colors
 
 INPUT_MAX_LEN = MAX_PASSWORD_LENGTH

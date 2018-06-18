@@ -1,6 +1,6 @@
 import argparse
 
-from callback import ReducePasswordsOnSimilarEmailsCallback
+from processing_callbacks import ReducePasswordsOnSimilarEmailsCallback
 from utils import process
 
 parser = argparse.ArgumentParser('Data Processing Tool.')

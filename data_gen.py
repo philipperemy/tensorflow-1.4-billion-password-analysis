@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 from tqdm import tqdm
 
-from constants import EDIT_DISTANCE_FILENAME, MAX_PASSWORD_LENGTH, MAX_VOCABULARY
+from train_constants import EDIT_DISTANCE_FILENAME, MAX_PASSWORD_LENGTH, MAX_VOCABULARY
 
 
 def get_indices_token():
