@@ -1,8 +1,8 @@
 import json
-import os
 
 import editdistance
 import numpy as np
+import os
 
 from shp import find_shortest_hamiltonian_path_in_complete_graph
 
@@ -24,7 +24,7 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
         self.cache_key_edit_distance_list = {}
         self.filename = persisted_filename
 
-    def finalize_cache(self):
+    def _finalize_cache(self):
         keys = list(self.cache.keys())
         for key in keys:
             orig_password_list = list(self.cache[key])
@@ -60,7 +60,7 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             self.cache[email].add(password)
 
     def persist(self):
-        self.finalize_cache()
+        self._finalize_cache()
         with open(self.filename + '_per_user.json', 'w') as w:
             json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
 
@@ -78,7 +78,3 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
                 password_pairs = self.cache_key_edit_distance_list[edit_distance]
                 lines = list(map(csv_line_format, password_pairs))
                 w.writelines(lines)
-
-    def debug(self):
-        pass
-        # print('{0} total number of unique emails.'.format(len(self.cache)))
