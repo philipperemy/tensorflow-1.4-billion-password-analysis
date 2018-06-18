@@ -3,12 +3,14 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 
-from data_gen import LazyDataLoader, build_vocabulary, get_token_indices, get_chars_and_ctable
+from data_gen import LazyDataLoader, build_vocabulary, get_chars_and_ctable
 
 parser = argparse.ArgumentParser('Data Encoding Tool.')
 parser.add_argument('--training_filename', type=str,
-                    help='Result of run_data_processing.py. Something like: /home/premy/BreachCompilationAnalysis/edit-distances/1.csv',
+                    help='Result of run_data_processing.py. '
+                         'Something like: /home/premy/BreachCompilationAnalysis/edit-distances/1.csv',
                     required=True)
+# parser.add_argument('--encoding_output_folder', type=str, help='Will be used for training')
 
 arg_p = parser.parse_args()
 
