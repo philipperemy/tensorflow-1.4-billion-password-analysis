@@ -6,6 +6,9 @@ from utils import process
 parser = argparse.ArgumentParser('Data Processing Tool.')
 parser.add_argument('--breach_compilation_folder', type=str,
                     help='BreachCompilation/ folder containing the 1.4 billion passwords dataset.', required=True)
+parser.add_argument('--output_folder', type=str,
+                    default='~/BreachCompilationAnalysis',
+                    help='Output folder containing the generated datasets.')
 parser.add_argument('--max_num_files', type=int,
                     help='Maximum number of files to read. The entire dataset contains around 2000 files.'
                          'Can be useful to create mini datasets for the models.')
@@ -88,6 +91,7 @@ def run():
     arg_p = parser.parse_args()
     process(breach_compilation_folder=arg_p.breach_compilation_folder,
             num_files=arg_p.max_num_files,
+            output_folder=arg_p.output_folder,
             on_file_read_call_back_class=ReducePasswordsOnSimilarEmailsCallback)
 
 

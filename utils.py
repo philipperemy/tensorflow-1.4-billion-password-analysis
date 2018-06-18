@@ -5,6 +5,8 @@ import shutil
 from slugify import slugify
 from tqdm import tqdm
 
+from processing_callbacks import ReducePasswordsOnSimilarEmailsCallback
+
 
 def extract_emails_and_passwords(txt_lines):
     emails_passwords = []
@@ -28,15 +30,18 @@ def extract_emails_and_passwords(txt_lines):
     return emails_passwords
 
 
-def process(breach_compilation_folder, num_files, on_file_read_call_back_class):
+def process(breach_compilation_folder,
+            output_folder='~/BreachCompilationAnalysis',
+            num_files=None,
+            on_file_read_call_back_class=ReducePasswordsOnSimilarEmailsCallback):
     breach_compilation_folder = os.path.join(os.path.expanduser(breach_compilation_folder), 'data')
     all_filenames = glob(breach_compilation_folder + '/**/*', recursive=True)
-    all_filenames = list(filter(os.path.isfile, all_filenames))
+    all_filenames = sorted(list(filter(os.path.isfile, all_filenames)))
     callback_class_name = str(on_file_read_call_back_class).split('callback.')[-1][:-2]
-    analysis_folder = os.path.expanduser('~/BreachCompilationAnalysis')
+    analysis_folder = os.path.expanduser(output_folder)
     output_dir = os.path.join(analysis_folder, callback_class_name)
     try:
-        print('CLEAN FOLDER: {0}.'.format(analysis_folder))
+        print('CLEAN OUTPUT FOLDER: {0}.'.format(analysis_folder))
         shutil.rmtree(analysis_folder)
     except:
         pass
@@ -57,7 +62,7 @@ def process(breach_compilation_folder, num_files, on_file_read_call_back_class):
                 lines = r.readlines()
                 emails_passwords = extract_emails_and_passwords(lines)
                 callback.call(emails_passwords)
-            bar.set_description('Processing {0} passwords'.format(len(callback.cache)))
+            bar.set_description('Processing {0} passwords for {1}'.format(len(callback.cache), current_filename))
             callback.persist()
     bar.close()
     print('DONE. SUCCESS.')
