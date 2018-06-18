@@ -1,5 +1,10 @@
-# EDIT_DISTANCE_FILENAME = '/Users/philipperemy/BreachCompilationAnalysis/edit-distances/1.csv'
-EDIT_DISTANCE_FILENAME = '/home/premy/BreachCompilationAnalysis/edit-distances/1.csv'
+#
+# train_constants.py: Contains the constants necessary for the encoding and the training phases.
+#
 
-MAX_PASSWORD_LENGTH = 12
-MAX_VOCABULARY = 80
+# Maximum password length. Passwords greater than this length will be discarded during the encoding phase.
+ENCODING_MAX_PASSWORD_LENGTH = 12
+
+# Maximum number of characters for encoding. By default, we use the 80 most frequent characters and
+# we bin the other ones in a OOV (out of vocabulary) group.
+ENCODING_MAX_SIZE_VOCAB = 80

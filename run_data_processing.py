@@ -88,6 +88,8 @@ parser.add_argument('--max_num_files', type=int,
 
 
 def run():
+    # example: --breach_compilation_folder /media/philippe/DATA/BreachCompilation/
+    # --max_num_files 100 --output_folder ~/BreachCompilationAnalysis2
     arg_p = parser.parse_args()
     process(breach_compilation_folder=arg_p.breach_compilation_folder,
             num_files=arg_p.max_num_files,

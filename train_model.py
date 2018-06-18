@@ -9,11 +9,11 @@ from keras import layers
 from keras.layers import Dropout
 from keras.models import Sequential
 
-from train_constants import MAX_PASSWORD_LENGTH, MAX_VOCABULARY
+from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
 from data_gen import get_chars_and_ctable, colors
 
-INPUT_MAX_LEN = MAX_PASSWORD_LENGTH
-OUTPUT_MAX_LEN = MAX_PASSWORD_LENGTH
+INPUT_MAX_LEN = ENCODING_MAX_PASSWORD_LENGTH
+OUTPUT_MAX_LEN = ENCODING_MAX_PASSWORD_LENGTH
 chars, c_table = get_chars_and_ctable()
 
 
@@ -29,6 +29,9 @@ def get_arguments(parser):
 
 def get_script_arguments():
     parser = argparse.ArgumentParser(description='Training a password model.')
+    # Something like: /home/premy/BreachCompilationAnalysis/edit-distances/1.csv
+    # Result of run_data_processing.py.
+    parser.add_argument('--training_filename', required=True, type=str)
     parser.add_argument('--hidden_size', default=256, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
     args = get_arguments(parser)
@@ -41,13 +44,13 @@ def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
     sub_inputs = inputs_[random_indices]
     sub_targets = targets_[random_indices]
 
-    x = np.zeros((chunk_size, MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
-    y = np.zeros((chunk_size, MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
+    x = np.zeros((chunk_size, ENCODING_MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
+    y = np.zeros((chunk_size, ENCODING_MAX_PASSWORD_LENGTH, len(chars)), dtype=np.bool)
 
     for i_, element in enumerate(sub_inputs):
-        x[i_] = c_table.encode(element, MAX_PASSWORD_LENGTH)
+        x[i_] = c_table.encode(element, ENCODING_MAX_PASSWORD_LENGTH)
     for i_, element in enumerate(sub_targets):
-        y[i_] = c_table.encode(element, MAX_PASSWORD_LENGTH)
+        y[i_] = c_table.encode(element, ENCODING_MAX_PASSWORD_LENGTH)
 
     split_at = len(x) - len(x) // 10
     (x_train, x_val) = x[:split_at], x[split_at:]
@@ -66,8 +69,8 @@ def predict_top_most_likely_passwords(model_, rowx_, n_):
     most_likely_passwords = []
     for ii in range(n_):
         # of course should take the edit distance constraint.
-        pa = np.array([np.random.choice(a=range(MAX_VOCABULARY + 2), size=1, p=p_[jj, :])
-                       for jj in range(MAX_PASSWORD_LENGTH)]).flatten()
+        pa = np.array([np.random.choice(a=range(ENCODING_MAX_SIZE_VOCAB + 2), size=1, p=p_[jj, :])
+                       for jj in range(ENCODING_MAX_PASSWORD_LENGTH)]).flatten()
         most_likely_passwords.append(c_table.decode(pa, calc_argmax=False))
     return most_likely_passwords
     # Could sample 1000 and take the most_common()
@@ -90,7 +93,7 @@ def gen_large_chunk_multi_thread(inputs_, targets_, chunk_size):
     sub_targets = targets_[random_indices]
 
     def encode(elt):
-        return c_table.encode(elt, MAX_PASSWORD_LENGTH)
+        return c_table.encode(elt, ENCODING_MAX_PASSWORD_LENGTH)
 
     num_threads = multiprocessing.cpu_count() // 2
     x = parallel_function(encode, sub_inputs, num_threads=num_threads)

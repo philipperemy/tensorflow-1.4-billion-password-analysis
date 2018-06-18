@@ -37,15 +37,15 @@ def process(breach_compilation_folder,
     breach_compilation_folder = os.path.join(os.path.expanduser(breach_compilation_folder), 'data')
     all_filenames = glob(breach_compilation_folder + '/**/*', recursive=True)
     all_filenames = sorted(list(filter(os.path.isfile, all_filenames)))
-    callback_class_name = str(on_file_read_call_back_class).split('callback.')[-1][:-2]
+    callback_class_name = on_file_read_call_back_class.NAME
     analysis_folder = os.path.expanduser(output_folder)
-    output_dir = os.path.join(analysis_folder, callback_class_name)
+    callback_output_dir = os.path.join(analysis_folder, callback_class_name)
     try:
         print('OUTPUT FOLDER: {0}.'.format(analysis_folder))
         shutil.rmtree(analysis_folder)
     except:
         pass
-    os.makedirs(output_dir)
+    os.makedirs(callback_output_dir)
 
     print('FOUND: {0} unique files in {1}.'.format(len(all_filenames), breach_compilation_folder))
     if num_files is not None:
@@ -56,8 +56,8 @@ def process(breach_compilation_folder,
     for current_filename in bar:
         if os.path.isfile(current_filename):
             suffix = slugify(current_filename.split('data')[-1])
-            output_filename = os.path.join(output_dir, suffix)
-            callback = on_file_read_call_back_class(output_filename)
+            output_filename = os.path.join(callback_output_dir, suffix)
+            callback = on_file_read_call_back_class(output_filename, analysis_folder)
             with open(current_filename, 'r', encoding='utf8', errors='ignore') as r:
                 lines = r.readlines()
                 emails_passwords = extract_emails_and_passwords(lines)

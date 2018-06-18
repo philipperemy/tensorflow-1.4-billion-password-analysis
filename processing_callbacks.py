@@ -17,12 +17,15 @@ class Callback:
 
 
 class ReducePasswordsOnSimilarEmailsCallback(Callback):
-    def __init__(self, persisted_filename):
+    NAME = 'reduce-passwords-on-similar-emails'
+
+    def __init__(self, persisted_filename, output_folder):
         super().__init__()
         self.cache = {}
         self.cache_key_edit_distance_keep_user_struct = {}
         self.cache_key_edit_distance_list = {}
         self.filename = persisted_filename
+        self.output_folder = output_folder
 
     def _finalize_cache(self):
         keys = list(self.cache.keys())
@@ -69,7 +72,7 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
             def csv_line_format(x):
                 return str(edit_distance) + sep + x[0] + sep + x[1] + '\n'
 
-            output_dir = os.path.join(os.path.expanduser('~/BreachCompilationAnalysis'), 'edit-distances')
+            output_dir = os.path.join(os.path.expanduser(self.output_folder), 'edit-distances')
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             csv_file = os.path.join(output_dir, str(edit_distance) + '.csv')

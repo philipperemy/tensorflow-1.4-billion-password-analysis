@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 from tqdm import tqdm
 
-from train_constants import EDIT_DISTANCE_FILENAME, MAX_PASSWORD_LENGTH, MAX_VOCABULARY
+from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
 
 
 def get_indices_token():
@@ -20,7 +20,7 @@ def get_vocab_size():
 
 
 def discard_password(password):
-    return len(password) > MAX_PASSWORD_LENGTH or ' ' in password
+    return len(password) > ENCODING_MAX_PASSWORD_LENGTH or ' ' in password
 
 
 class CharacterTable(object):
@@ -75,10 +75,10 @@ def get_chars_and_ctable():
     return chars, ctable
 
 
-def build_vocabulary():
+def build_vocabulary(training_filename):
     vocabulary = {}
-    print('Reading file {}.'.format(EDIT_DISTANCE_FILENAME))
-    with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
+    print('Reading file {}.'.format(training_filename))
+    with open(training_filename, 'rb') as r:
         for l in tqdm(r.readlines(), desc='Build Vocabulary'):
             line_id, x, y = l.decode('utf8').strip().split(' ||| ')
             if discard_password(y) or discard_password(x):
@@ -87,7 +87,7 @@ def build_vocabulary():
                 if element not in vocabulary:
                     vocabulary[element] = 0
                 vocabulary[element] += 1
-    vocabulary_sorted_list = sorted(dict(Counter(vocabulary).most_common(MAX_VOCABULARY)).keys())
+    vocabulary_sorted_list = sorted(dict(Counter(vocabulary).most_common(ENCODING_MAX_SIZE_VOCAB)).keys())
     oov_char = '？'
     pad_char = ' '
     print('Out of vocabulary (OOV) char is {}'.format(oov_char))
@@ -109,8 +109,8 @@ def build_vocabulary():
     print('Done... File is /tmp/indices_token.pkl')
 
 
-def stream_from_file():
-    with open(EDIT_DISTANCE_FILENAME, 'rb') as r:
+def stream_from_file(training_filename):
+    with open(training_filename, 'rb') as r:
         for l in r.readlines():
             _, x, y = l.decode('utf8').strip().split(' ||| ')
             if discard_password(y) or discard_password(x):
@@ -119,21 +119,22 @@ def stream_from_file():
 
 
 class LazyDataLoader:
-    def __init__(self):
-        self.stream = stream_from_file()
+    def __init__(self, training_filename):
+        self.training_filename = training_filename
+        self.stream = stream_from_file(self.training_filename)
 
     def next(self):
         try:
             return next(self.stream)
         except:
-            self.stream = stream_from_file()
+            self.stream = stream_from_file(self.training_filename)
             return self.next()
 
     def statistics(self):
         max_len_value_x = 0
         max_len_value_y = 0
         num_lines = 0
-        self.stream = stream_from_file()
+        self.stream = stream_from_file(self.training_filename)
         for x, y in self.stream:
             max_len_value_x = max(max_len_value_x, len(x))
             max_len_value_y = max(max_len_value_y, len(y))
@@ -147,7 +148,7 @@ class LazyDataLoader:
 
 if __name__ == '__main__':
     # how to use it.
-    ldl = LazyDataLoader()
+    ldl = LazyDataLoader('/home/premy/BreachCompilationAnalysis/edit-distances/1.csv')
     print(ldl.statistics())
     while True:
         print(ldl.next())
