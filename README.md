@@ -20,7 +20,7 @@ Disclaimer: for research purposes only.
 ## Get the data
 
 - Download any Torrent client.
-- Here is a magnet link you can find on Reddit:
+- Here is a magnet link you can find on [Reddit](https://www.reddit.com/r/privacy/comments/7j1hhz/14_billion_clear_text_credentials_discovered_in_a/):
   - magnet:?xt=urn:btih:7ffbcd8cee06aba2ce6561688cf68ce2addca0a3&dn=BreachCompilation&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A80&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Fglotorrents.pw%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337
 - Checksum list is available here: [checklist.chk](checklist.chk)
 - `./count_total.sh` in `BreachCompilation` should display something like 1,400,553,870 rows.
