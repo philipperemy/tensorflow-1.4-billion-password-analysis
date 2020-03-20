@@ -2,17 +2,26 @@ import pickle
 from collections import Counter
 
 import numpy as np
+import os
 from tqdm import tqdm
 
 from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
 
+TMP_DIR = 'tmp'
+
+if not os.path.exists(TMP_DIR):
+    os.makedirs(TMP_DIR)
+
+TOKEN_INDICES = os.path.join(TMP_DIR, 'token_indices.pkl')
+INDICES_TOKEN = os.path.join(TMP_DIR, 'indices_token.pkl')
+
 
 def get_indices_token():
-    return pickle.load(open('/tmp/indices_token.pkl', 'rb'))
+    return pickle.load(open(INDICES_TOKEN, 'rb'))
 
 
 def get_token_indices():
-    return pickle.load(open('/tmp/token_indices.pkl', 'rb'))
+    return pickle.load(open(TOKEN_INDICES, 'rb'))
 
 
 def get_vocab_size():
@@ -76,22 +85,19 @@ def get_chars_and_ctable():
 
 
 def build_vocabulary(training_filename):
-    vocabulary = {}
+    vocabulary = Counter()
     print('Reading file {}.'.format(training_filename))
-    with open(training_filename, 'rb') as r:
-        for l in tqdm(r.readlines(), desc='Build Vocabulary'):
-            line_id, x, y = l.decode('utf8').strip().split(' ||| ')
+    with open(training_filename, 'r', encoding='utf8', errors='ignore') as r:
+        for s in tqdm(r.readlines(), desc='Build Vocabulary'):
+            _, x, y = s.strip().split(' ||| ')
             if discard_password(y) or discard_password(x):
                 continue
-            for element in list(y + x):
-                if element not in vocabulary:
-                    vocabulary[element] = 0
-                vocabulary[element] += 1
-    vocabulary_sorted_list = sorted(dict(Counter(vocabulary).most_common(ENCODING_MAX_SIZE_VOCAB)).keys())
+            vocabulary += Counter(list(y + x))
+    vocabulary_sorted_list = sorted(dict(vocabulary.most_common(ENCODING_MAX_SIZE_VOCAB)).keys())
     oov_char = '？'
     pad_char = ' '
-    print('Out of vocabulary (OOV) char is {}'.format(oov_char))
-    print('Pad char is "{}"'.format(pad_char))
+    print('Out of vocabulary (OOV) char is {}.'.format(oov_char))
+    print('Pad char is "{}".'.format(pad_char))
     vocabulary_sorted_list.append(oov_char)  # out of vocabulary.
     vocabulary_sorted_list.append(pad_char)  # pad char.
     print('Vocabulary = ' + ' '.join(vocabulary_sorted_list))
@@ -99,14 +105,14 @@ def build_vocabulary(training_filename):
     indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
     assert len(token_indices) == len(indices_token)
 
-    with open('/tmp/token_indices.pkl', 'wb') as w:
+    with open(TOKEN_INDICES, 'wb') as w:
         pickle.dump(obj=token_indices, file=w)
 
-    with open('/tmp/indices_token.pkl', 'wb') as w:
+    with open(INDICES_TOKEN, 'wb') as w:
         pickle.dump(obj=indices_token, file=w)
 
-    print('Done... File is /tmp/token_indices.pkl')
-    print('Done... File is /tmp/indices_token.pkl')
+    print(f'Done... File is {TOKEN_INDICES}.')
+    print(f'Done... File is {INDICES_TOKEN}.')
 
 
 def stream_from_file(training_filename):

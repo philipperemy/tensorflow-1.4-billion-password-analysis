@@ -1,12 +1,14 @@
 import argparse
 
+import os
+
 from processing_callbacks import ReducePasswordsOnSimilarEmailsCallback
 from utils import process
 
 parser = argparse.ArgumentParser('Data Processing Tool.')
-parser.add_argument('--breach_compilation_folder', type=str,
+parser.add_argument('--breach_compilation_folder', type=os.path.expanduser,
                     help='BreachCompilation/ folder containing the 1.4 billion passwords dataset.', required=True)
-parser.add_argument('--output_folder', type=str,
+parser.add_argument('--output_folder', type=os.path.expanduser,
                     default='~/BreachCompilationAnalysis',
                     help='Output folder containing the generated datasets.')
 parser.add_argument('--max_num_files', type=int,
