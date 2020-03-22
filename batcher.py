@@ -12,7 +12,7 @@ from utils import stream_from_file
 class Batcher:
     TMP_DIR = tempfile.gettempdir()
 
-    SEP = ' ||| '
+    SEP = '\t'
 
     # Maximum password length. Passwords greater than this length will be discarded during the encoding phase.
     ENCODING_MAX_PASSWORD_LENGTH = 12
