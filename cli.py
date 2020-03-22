@@ -22,7 +22,7 @@ def dumphelp():
 
 @cli.command('preprocess')
 @click.option('--breach_compilation_folder', required=True, type=Ct.input_dir())
-@click.option('--output_folder', required=True, type=Ct.output_dir())
+@click.option('--output_dir', required=True, type=Ct.output_dir())
 @click.option('--max_num_files', default=0, type=int, show_default=True)
 def cli_preprocess(breach_compilation_folder, output_folder, max_num_files):
     preprocess(breach_compilation_folder, output_folder, max_num_files)

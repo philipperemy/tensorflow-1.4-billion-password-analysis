@@ -1,14 +1,13 @@
 import itertools
 import json
 import os
-from collections import Counter
+from collections import Counter, defaultdict
 from glob import glob
 from itertools import combinations
 
 import Levenshtein
 import editdistance
 import numpy as np
-from slugify import slugify
 from tensorflow.keras import Input
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Dense
@@ -16,85 +15,47 @@ from tensorflow.keras.layers import LSTM
 from tqdm import tqdm
 
 from batcher import Batcher
-from utils import ensure_dir, ensure_dir_for_file, create_new_dir
+from utils import create_new_dir, ensure_dir
 
 
-class Callback:
-    def __init__(self):
-        pass
+class EditDistanceParser:
 
-    def call(self, emails_passwords):
-        # emails_passwords = list of tuples
-        pass
-
-
-class ReducePasswordsOnSimilarEmailsCallback(Callback):
-    NAME = 'reduce-passwords-on-similar-emails'
-
-    def __init__(self, persisted_filename, output_folder):
-        super().__init__()
-        self.cache = {}
-        self.cache_key_edit_distance_keep_user_struct = {}
-        self.cache_key_edit_distance_list = {}
-        self.filename = persisted_filename
-        self.output_folder = output_folder
+    def __init__(self, output_dir):
+        self.cache = defaultdict(set)
+        self.ed_to_password_list_map = defaultdict(list)
+        self.output_dir = output_dir
 
     def _finalize_cache(self):
-        keys = list(self.cache.keys())
-        for key in keys:
-            orig_password_list = list(self.cache[key])
-            del self.cache[key]
-            if len(orig_password_list) > 1:
-                shp = list(find_shortest_hamiltonian_path_in_complete_graph(orig_password_list, False))
+        for key, password_list in self.cache.items():
+            if len(password_list) > 1:
+                shp = find_shortest_hamiltonian_path_in_complete_graph(password_list, debug=False)
                 if len(shp) == 0:
                     continue  # shortest_hamiltonian_path did not return well.
-
                 edit_distances = []
                 for a, b in zip(shp, shp[1:]):
                     ed = editdistance.eval(a, b)
                     edit_distances.append(ed)
-                    if ed not in self.cache_key_edit_distance_list:
-                        self.cache_key_edit_distance_list[ed] = []
-                    self.cache_key_edit_distance_list[ed].append((a, b))
-
-                self.cache[key] = {}
-                self.cache[key]['password'] = shp
-                self.cache[key]['edit_distance'] = [0] + edit_distances
-                mean_edit_distance_key = float('{0:.2f}'.format(np.mean(edit_distances)))
-                if mean_edit_distance_key not in self.cache_key_edit_distance_keep_user_struct:
-                    self.cache_key_edit_distance_keep_user_struct[mean_edit_distance_key] = []
-                new_elt = {'password': self.cache[key]['password'],
-                           'edit_distance': self.cache[key]['edit_distance'],
-                           'email': key}
-                self.cache_key_edit_distance_keep_user_struct[mean_edit_distance_key].append(new_elt)
+                    self.ed_to_password_list_map[ed].append((a, b))
 
     def call(self, emails_passwords):
         for (email, password) in emails_passwords:
-            if email not in self.cache:
-                self.cache[email] = set()
             self.cache[email].add(password.strip())
+
+    def flush(self):
+        self.cache = defaultdict(set)
+        self.ed_to_password_list_map = defaultdict(list)
 
     def persist(self):
         self._finalize_cache()
-        output_file = self.filename + '_per_user.json'
-        ensure_dir_for_file(output_file)
-        with open(output_file, 'w') as w:
-            json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True,
-                      ensure_ascii=False)
-
-        for edit_distance in sorted(self.cache_key_edit_distance_list):
-            def csv_line_format(x):
-                return str(edit_distance) + Batcher.SEP + x[0] + Batcher.SEP + x[1] + '\n'
-
-            output_dir = os.path.join(os.path.expanduser(self.output_folder), 'edit-distances')
-            if not os.path.exists(output_dir):
-                os.makedirs(output_dir)
+        for edit_distance in sorted(self.ed_to_password_list_map):
+            output_dir = os.path.join(os.path.expanduser(self.output_dir), 'edit-distances')
+            ensure_dir(output_dir)
             csv_file = os.path.join(output_dir, str(edit_distance) + '.csv')
-            # print('Updating: ' + csv_file)
             with open(csv_file, encoding='utf8', mode='a') as w:
-                password_pairs = self.cache_key_edit_distance_list[edit_distance]
-                lines = list(map(csv_line_format, password_pairs))
+                password_pairs = self.ed_to_password_list_map[edit_distance]
+                lines = [str(edit_distance) + Batcher.SEP + x[0] + Batcher.SEP + x[1] + '\n' for x in password_pairs]
                 w.writelines(lines)
+        self.flush()
 
 
 def find_shortest_hamiltonian_path_in_complete_graph(passwords, debug=True):
@@ -146,42 +107,32 @@ def find_shortest_hamiltonian_path_in_complete_graph(passwords, debug=True):
     if debug:
         print(best_solutions)
 
-    final_solution = best_solutions[np.argmin([len(bs[0]) for bs in best_solutions])]
+    final_solution = best_solutions[int(np.argmin([len(bs[0]) for bs in best_solutions]))]
 
     if debug:
         print(final_solution)
 
-    return final_solution
+    return list(final_solution)
 
 
-def preprocess(breach_compilation_folder, output_folder, max_num_files):
-    on_file_read_call_back_class = ReducePasswordsOnSimilarEmailsCallback
-    all_filenames = glob(os.path.expanduser(breach_compilation_folder) + '/**/*', recursive=True)
-    all_filenames = sorted(list(filter(os.path.isfile, all_filenames)))
-    callback_class_name = on_file_read_call_back_class.NAME
-    callback_output_dir = os.path.join(output_folder, callback_class_name)
-    create_new_dir(output_folder)
-
-    print('FOUND: {0} unique files in {1}.'.format(len(all_filenames), breach_compilation_folder))
+def preprocess(breach_compilation_folder, output_dir, max_num_files):
+    bc_dir = os.path.expanduser(breach_compilation_folder)
+    all_filenames = glob(bc_dir + '/**/*', recursive=True)
+    all_filenames = [f for f in list(filter(os.path.isfile, all_filenames)) if os.path.isfile(f)]
+    create_new_dir(output_dir)
+    print(f'Found {len(all_filenames)} files in {bc_dir}.')
     if max_num_files is not None:
-        print('TRUNCATE DATASET TO: {0} files.'.format(max_num_files))
-        all_filenames = all_filenames[0:max_num_files]
-
-    bar = tqdm(all_filenames)
-    for current_filename in bar:
-        if os.path.isfile(current_filename):
-            suffix = slugify(current_filename.split('data')[-1])
-            output_filename = os.path.join(callback_output_dir, suffix)
-            callback = on_file_read_call_back_class(output_filename, output_folder)
+        all_filenames = all_filenames[:max_num_files]
+    edp = EditDistanceParser(output_dir)
+    with tqdm(all_filenames) as bar:
+        for current_filename in bar:
             with open(current_filename, 'r', encoding='utf8', errors='ignore') as r:
                 lines = r.readlines()
-                emails_passwords = extract_emails_and_passwords(lines)
-                callback.call(emails_passwords)
-            bar.set_description('Processing {0:,} passwords for {1}'.format(len(callback.cache), current_filename))
-            callback.persist()
-    bar.close()
+            emails_passwords = extract_emails_and_passwords(lines)
+            edp.call(emails_passwords)
+            edp.persist()
     print('DONE. SUCCESS.')
-    print('OUTPUT: Dataset was generated at: {0}.'.format(output_folder))
+    print(f'OUTPUT: Dataset was generated at: {output_dir}.')
 
 
 def build_encodings(training_filename):

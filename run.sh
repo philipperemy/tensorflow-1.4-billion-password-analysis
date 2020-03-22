@@ -7,7 +7,7 @@ if [[ $# -eq 0 ]] ; then
     exit 0
 fi
 
-python cli.py preprocess --breach_compilation_folder $1 --max_num_files 100 --output_folder breach_compilation_preprocessed
+python cli.py preprocess --breach_compilation_folder $1 --max_num_files 100 --output_dir breach_compilation_preprocessed
 
 python cli.py build-encodings --training_filename breach_compilation_preprocessed/edit-distances/1.csv
 
