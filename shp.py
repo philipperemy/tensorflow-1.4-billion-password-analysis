@@ -5,8 +5,6 @@ from itertools import combinations
 import editdistance
 import numpy as np
 
-PASSWORDS = ['hello1', 'hello22', 'h@llo22', 'h@llo223']
-
 
 def find_shortest_hamiltonian_path_in_complete_graph(passwords, debug=True):
     # complexity is paramount! This script runs in factorial(n)
@@ -63,5 +61,10 @@ def find_shortest_hamiltonian_path_in_complete_graph(passwords, debug=True):
     return final_solution
 
 
+def main():
+    passwords = ['hello1', 'hello22', 'h@llo22', 'h@llo223']
+    print(find_shortest_hamiltonian_path_in_complete_graph(passwords, False))
+
+
 if __name__ == '__main__':
-    print(find_shortest_hamiltonian_path_in_complete_graph(PASSWORDS, False))
+    main()

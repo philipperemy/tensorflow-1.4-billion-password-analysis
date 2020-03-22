@@ -5,31 +5,104 @@ import numpy as np
 import os
 from tqdm import tqdm
 
-from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
-
-TMP_DIR = 'tmp'
-
-if not os.path.exists(TMP_DIR):
-    os.makedirs(TMP_DIR)
-
-TOKEN_INDICES = os.path.join(TMP_DIR, 'token_indices.pkl')
-INDICES_TOKEN = os.path.join(TMP_DIR, 'indices_token.pkl')
+from utils import TMP_DIR
 
 
-def get_indices_token():
-    return pickle.load(open(INDICES_TOKEN, 'rb'))
+class Batcher:
+    # Maximum password length. Passwords greater than this length will be discarded during the encoding phase.
+    ENCODING_MAX_PASSWORD_LENGTH = 12
 
+    # Maximum number of characters for encoding. By default, we use the 80 most frequent characters and
+    # we bin the other ones in a OOV (out of vocabulary) group.
+    ENCODING_MAX_SIZE_VOCAB = 80
 
-def get_token_indices():
-    return pickle.load(open(TOKEN_INDICES, 'rb'))
+    @staticmethod
+    def build(training_filename):
+        print('Building vocabulary...')
+        build_vocabulary(training_filename)
+        print('Vectorization...')
+        data_loader = LazyDataLoader(training_filename)
+        _, _, training_records_count = data_loader.statistics()
+        inputs = []
+        targets = []
+        print('Generating data...')
+        for _ in tqdm(range(training_records_count), desc='Generating inputs and targets'):
+            x_, y_ = data_loader.next()
+            # Pad the data with spaces such that it is always MAXLEN.
+            inputs.append(x_)
+            targets.append(y_)
 
+        np.savez_compressed('/tmp/x_y.npz', inputs=inputs, targets=targets)
 
-def get_vocab_size():
-    return len(get_token_indices())
+        print('Done... File is /tmp/x_y.npz')
+
+    @staticmethod
+    def load():
+        if not os.path.exists('/tmp/x_y.npz'):
+            raise Exception('Please run the vectorization script before.')
+
+        print('Loading data from prefetch...')
+        data = np.load('/tmp/x_y.npz')
+        inputs = data['inputs']
+        targets = data['targets']
+
+        print('Data:')
+        print(inputs.shape)
+        print(targets.shape)
+        return inputs, targets
+
+    def __init__(self):
+        if not os.path.exists(TMP_DIR):
+            os.makedirs(TMP_DIR)
+
+        self.token_indices = os.path.join(TMP_DIR, 'token_indices.pkl')
+        self.indices_token = os.path.join(TMP_DIR, 'indices_token.pkl')
+
+        try:
+            self.chars, self.c_table = self.get_chars_and_ctable()
+        except FileNotFoundError:
+            raise Exception('Run first run_encoding.py to generate the required files.')
+
+    def chars_len(self):
+        return len(self.chars)
+
+    def get_indices_token(self):
+        return pickle.load(open(self.indices_token, 'rb'))
+
+    def get_token_indices(self):
+        return pickle.load(open(self.token_indices, 'rb'))
+
+    def get_vocab_size(self):
+        return len(self.get_token_indices())
+
+    def get_chars_and_ctable(self):
+        chars = ''.join(list(self.get_token_indices().values()))
+        ctable = CharacterTable(chars)
+        return chars, ctable
+
+    def write(self, vocabulary_sorted_list):
+        token_indices = dict((c, i) for (c, i) in enumerate(vocabulary_sorted_list))
+        indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
+        assert len(token_indices) == len(indices_token)
+
+        with open(self.token_indices, 'wb') as w:
+            pickle.dump(obj=token_indices, file=w)
+
+        with open(self.indices_token, 'wb') as w:
+            pickle.dump(obj=indices_token, file=w)
+
+        print(f'Done... File is {self.token_indices}.')
+        print(f'Done... File is {self.indices_token}.')
+
+    def decode(self, char, calc_argmax=True):
+        return self.c_table.decode(char, calc_argmax)
+
+    def encode(self, elt, num_rows=ENCODING_MAX_PASSWORD_LENGTH):
+        self.c_table.encode(elt, num_rows)
 
 
 def discard_password(password):
-    return len(password) > ENCODING_MAX_PASSWORD_LENGTH or ' ' in password
+    return len(password) > Batcher.ENCODING_MAX_PASSWORD_LENGTH or ' ' in password
 
 
 class CharacterTable(object):
@@ -78,13 +151,8 @@ class colors:
     close = '\033[0m'
 
 
-def get_chars_and_ctable():
-    chars = ''.join(list(get_token_indices().values()))
-    ctable = CharacterTable(chars)
-    return chars, ctable
-
-
 def build_vocabulary(training_filename):
+    sed = Batcher()
     vocabulary = Counter()
     print('Reading file {}.'.format(training_filename))
     with open(training_filename, 'r', encoding='utf8', errors='ignore') as r:
@@ -101,18 +169,7 @@ def build_vocabulary(training_filename):
     vocabulary_sorted_list.append(oov_char)  # out of vocabulary.
     vocabulary_sorted_list.append(pad_char)  # pad char.
     print('Vocabulary = ' + ' '.join(vocabulary_sorted_list))
-    token_indices = dict((c, i) for (c, i) in enumerate(vocabulary_sorted_list))
-    indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
-    assert len(token_indices) == len(indices_token)
-
-    with open(TOKEN_INDICES, 'wb') as w:
-        pickle.dump(obj=token_indices, file=w)
-
-    with open(INDICES_TOKEN, 'wb') as w:
-        pickle.dump(obj=indices_token, file=w)
-
-    print(f'Done... File is {TOKEN_INDICES}.')
-    print(f'Done... File is {INDICES_TOKEN}.')
+    sed.write(vocabulary_sorted_list)
 
 
 def stream_from_file(training_filename):
@@ -150,11 +207,3 @@ class LazyDataLoader:
         print('max_len_value_y =', max_len_value_y)
         print('num_lines =', num_lines)
         return max_len_value_x, max_len_value_y, num_lines
-
-
-if __name__ == '__main__':
-    # how to use it.
-    ldl = LazyDataLoader('/home/premy/BreachCompilationAnalysis/edit-distances/1.csv')
-    print(ldl.statistics())
-    while True:
-        print(ldl.next())

@@ -1,11 +1,14 @@
 from glob import glob
 
+import numpy as np
 import os
 import shutil
 from slugify import slugify
 from tqdm import tqdm
 
 from processing_callbacks import ReducePasswordsOnSimilarEmailsCallback
+
+TMP_DIR = 'tmp'
 
 
 def extract_emails_and_passwords(txt_lines):
@@ -25,7 +28,7 @@ def extract_emails_and_passwords(txt_lines):
                 strip_txt_line = txt_line.strip()
                 email, password = strip_txt_line.split(separator)
                 emails_passwords.append((email, password))
-        except:
+        except Exception:
             pass
     return emails_passwords
 
@@ -65,3 +68,13 @@ def process(breach_compilation_folder,
     bar.close()
     print('DONE. SUCCESS.')
     print('OUTPUT: Dataset was generated at: {0}.'.format(output_folder))
+
+
+def parallel_function(f, sequence, num_threads=None):
+    from multiprocessing.pool import ThreadPool
+    pool = ThreadPool(processes=num_threads)
+    result = pool.map(f, sequence)
+    cleaned = np.array([x for x in result if x is not None])
+    pool.close()
+    pool.join()
+    return cleaned

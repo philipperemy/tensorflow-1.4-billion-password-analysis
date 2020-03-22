@@ -4,7 +4,7 @@ import numpy as np
 import os
 from tqdm import tqdm
 
-from data_gen import LazyDataLoader, build_vocabulary, get_chars_and_ctable
+from batcher import LazyDataLoader, build_vocabulary, Batcher
 
 parser = argparse.ArgumentParser('Data Encoding Tool.')
 parser.add_argument('--training_filename', type=os.path.expanduser,
@@ -13,21 +13,20 @@ parser.add_argument('--training_filename', type=os.path.expanduser,
                     required=True)
 # parser.add_argument('--encoding_output_folder', type=str, help='Will be used for training')
 
-arg_p = parser.parse_args()
+args = parser.parse_args()
 
 print('Building vocabulary...')
 
-build_vocabulary(arg_p.training_filename)
+build_vocabulary(args.training_filename)
 
 print('Vectorization...')
 
-DATA_LOADER = LazyDataLoader(arg_p.training_filename)
+DATA_LOADER = LazyDataLoader(args.training_filename)
+SEQ = Batcher()
 
 _, _, training_records_count = DATA_LOADER.statistics()
 
-# TOKEN_INDICES = get_token_indices()
-
-chars, c_table = get_chars_and_ctable()
+# token_indices = get_token_indices()
 
 inputs = []
 targets = []

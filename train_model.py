@@ -1,57 +1,32 @@
 # -*- coding: utf-8 -*-
 import argparse
-import multiprocessing
 from collections import Counter
 
 import Levenshtein
 import numpy as np
-import os
+from tensorflow.keras import Input
 from tensorflow.keras import Model
-from tensorflow.keras import layers, Input
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import LSTM
 
-from data_gen import get_chars_and_ctable
-from train_constants import ENCODING_MAX_PASSWORD_LENGTH, ENCODING_MAX_SIZE_VOCAB
-
-INPUT_MAX_LEN = ENCODING_MAX_PASSWORD_LENGTH
-OUTPUT_MAX_LEN = ENCODING_MAX_PASSWORD_LENGTH
-
-try:
-    chars, c_table = get_chars_and_ctable()
-except FileNotFoundError:
-    print('Run first run_encoding.py to generate the required files.')
-    exit(1)
-
-
-def get_arguments(parser):
-    args = None
-    try:
-        args = parser.parse_args()
-    except:
-        parser.print_help()
-        exit(1)
-    return args
+from batcher import Batcher
 
 
 def get_script_arguments():
     parser = argparse.ArgumentParser(description='Training a password model.')
-    # Something like: /home/premy/BreachCompilationAnalysis/edit-distances/1.csv
-    # Result of run_data_processing.py.
-    # parser.add_argument('--training_filename', required=True, type=str)
     parser.add_argument('--hidden_size', default=256, type=int)
     parser.add_argument('--batch_size', default=256, type=int)
-    args = get_arguments(parser)
-    print(args)
+    args = parser.parse_args()
     return args
 
 
-def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
+def gen_large_chunk_single_thread(sed: Batcher, inputs_, targets_, chunk_size):
     # make it simple now.
     random_indices = np.random.choice(a=range(len(inputs_)), size=chunk_size, replace=True)
     sub_inputs = inputs_[random_indices]
     sub_targets = targets_[random_indices]
 
-    x = np.zeros((chunk_size, ENCODING_MAX_PASSWORD_LENGTH, len(chars)), dtype=float)
+    x = np.zeros((chunk_size, sed.ENCODING_MAX_PASSWORD_LENGTH, sed.chars_len()), dtype=float)
     y2 = []
     y1 = []
 
@@ -73,13 +48,13 @@ def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
         else:
             raise Exception('Impossible.')
         y1.append(tt)
-        y2.append(c_table.encode(char_changed, len(char_changed)).squeeze())
+        y2.append(sed.encode(char_changed, len(char_changed)).squeeze())
 
     y1 = np.array(y1)
     y2 = np.array(y2)
 
     for i_, element in enumerate(sub_inputs):
-        x[i_] = c_table.encode(element, ENCODING_MAX_PASSWORD_LENGTH)
+        x[i_] = sed.encode(element)
 
     split_at = int(len(x) * 0.9)
     (x_train, x_val) = x[:split_at], x[split_at:]
@@ -91,89 +66,46 @@ def gen_large_chunk_single_thread(inputs_, targets_, chunk_size):
     return x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets
 
 
-def predict_top_most_likely_passwords_monte_carlo(model_, rowx_, n_, mc_samples=10000):
-    samples = predict_top_most_likely_passwords(model_, rowx_, mc_samples)
+def predict_top_most_likely_passwords_monte_carlo(sed: Batcher, model_, rowx_, n_, mc_samples=10000):
+    samples = predict_top_most_likely_passwords(sed, model_, rowx_, mc_samples)
     return dict(Counter(samples).most_common(n_)).keys()
 
 
-def predict_top_most_likely_passwords(model_, rowx_, n_):
+def predict_top_most_likely_passwords(sed: Batcher, model_, rowx_, n_):
     p_ = model_.predict(rowx_, batch_size=32, verbose=0)[0]
     most_likely_passwords = []
     for ii in range(n_):
         # of course should take the edit distance constraint.
-        pa = np.array([np.random.choice(a=range(ENCODING_MAX_SIZE_VOCAB + 2), size=1, p=p_[jj, :])
-                       for jj in range(ENCODING_MAX_PASSWORD_LENGTH)]).flatten()
-        most_likely_passwords.append(c_table.decode(pa, calc_argmax=False))
+        pa = np.array([np.random.choice(a=range(sed.ENCODING_MAX_SIZE_VOCAB + 2), size=1, p=p_[jj, :])
+                       for jj in range(sed.ENCODING_MAX_PASSWORD_LENGTH)]).flatten()
+        most_likely_passwords.append(sed.decode(pa, calc_argmax=False))
     return most_likely_passwords
     # Could sample 1000 and take the most_common()
 
 
-def gen_large_chunk_multi_thread(inputs_, targets_, chunk_size):
-    ''' This function is actually slower than gen_large_chunk_single_thread()'''
-
-    def parallel_function(f, sequence, num_threads=None):
-        from multiprocessing.pool import ThreadPool
-        pool = ThreadPool(processes=num_threads)
-        result = pool.map(f, sequence)
-        cleaned = np.array([x for x in result if x is not None])
-        pool.close()
-        pool.join()
-        return cleaned
-
-    random_indices = np.random.choice(a=range(len(inputs_)), size=chunk_size, replace=True)
-    sub_inputs = inputs_[random_indices]
-    sub_targets = targets_[random_indices]
-
-    def encode(elt):
-        return c_table.encode(elt, ENCODING_MAX_PASSWORD_LENGTH)
-
-    num_threads = multiprocessing.cpu_count() // 2
-    x = parallel_function(encode, sub_inputs, num_threads=num_threads)
-    y = parallel_function(encode, sub_targets, num_threads=num_threads)
-
-    split_at = len(x) - len(x) // 10
-    (x_train, x_val) = x[:split_at], x[split_at:]
-    (y_train, y_val) = y[:split_at], y[split_at:]
-
-    return x_train, y_train, x_val, y_val
-
-
-if not os.path.exists('/tmp/x_y.npz'):
-    raise Exception('Please run the vectorization script before.')
-
-print('Loading data from prefetch...')
-data = np.load('/tmp/x_y.npz')
-inputs = data['inputs']
-targets = data['targets']
-
-print('Data:')
-print(inputs.shape)
-print(targets.shape)
-
-ARGS = get_script_arguments()
-
-# Try replacing GRU.
-RNN = layers.LSTM
-HIDDEN_SIZE = ARGS.hidden_size
-BATCH_SIZE = ARGS.batch_size
-
-print('Build model...')
-
-
-def model_3():
-    i = Input(shape=(INPUT_MAX_LEN, len(chars)))
-    x = RNN(HIDDEN_SIZE)(i)
-    x = Dense(OUTPUT_MAX_LEN * len(chars), activation='relu')(x)
+def get_model(hidden_size, num_chars):
+    i = Input(shape=(Batcher.ENCODING_MAX_PASSWORD_LENGTH, num_chars))
+    x = LSTM(hidden_size)(i)
+    x = Dense(Batcher.ENCODING_MAX_PASSWORD_LENGTH * num_chars, activation='relu')(x)
 
     # ADD, DEL, SUB
     o1 = Dense(3, activation='softmax', name='op')(x)
-    o2 = Dense(len(chars), activation='softmax', name='char')(x)
+    o2 = Dense(num_chars, activation='softmax', name='char')(x)
 
     return Model(inputs=[i], outputs=[o1, o2])
 
 
 def main():
-    model = model_3()
+    inputs, targets = Batcher.load()
+    print('Data:')
+    print(inputs.shape)
+    print(targets.shape)
+
+    args = get_script_arguments()
+
+    # Try replacing GRU.
+    batcher = Batcher()
+    model = get_model(args.hidden_size, batcher.chars_len())
 
     losses = {
         "op": "categorical_crossentropy",
@@ -183,31 +115,17 @@ def main():
     model.compile(loss=losses, optimizer='adam', metrics=['accuracy'])
     model.summary()
 
-    # Train the model each generation and show predictions against the validation data set.
     for iteration in range(1, int(1e9)):
-        ppp = gen_large_chunk_single_thread(inputs, targets, chunk_size=BATCH_SIZE * 500)
+        ppp = gen_large_chunk_single_thread(batcher, inputs, targets, chunk_size=args.batch_size * 500)
         x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets = ppp
         print()
         print('-' * 50)
         print('Iteration', iteration)
-        # TODO: we need to update the loss to take into account that x!=y.
-        # TODO: We could actually if it's an ADD, DEL or MOD.
-        # TODO: Big improvement. We always have hello => hello1 right but never hello => 1hello
-        # It's mainly because we pad after and never before. So the model has to shift all the characters.
-        # And the risk for doing so is really since its a character based cross entropy loss.
-        # Even though accuracy is very high it does not really prove things since Identity would have a high
-        # Accuracy too.
-        # One way to do that is to predict the ADD/DEL/MOD op along with the character of interest and the index
-        # The index can just be a softmax over the indices of the password array, augmented (with a convention)
-        model.fit(x_train, [y_train_1, y_train_2],
-                  batch_size=BATCH_SIZE,
-                  epochs=5,
+        model.fit(x=x_train, y=[y_train_1, y_train_2], batch_size=args.batch_size, epochs=5,
                   validation_data=(x_val, [y_val_1, y_val_2]))
-        # Select 10 samples from the validation set at random so we can visualize
-        # errors.
         rowx, correct, previous = x_val, val_sub_targets, val_sub_inputs  # replace by x_val, y_val
         op, char = model.predict(rowx, verbose=0)
-        q = list(c_table.decode(char))
+        q = list(batcher.decode(char))
         op = op.argmax(axis=1)
         decoded_op = []
         for opp in op:
