@@ -145,72 +145,66 @@ def gen_large_chunk_single_thread(sed: Batcher, inputs_, targets_, chunk_size):
     sub_inputs = inputs_[random_indices]
     sub_targets = targets_[random_indices]
 
+    n = len(sub_inputs)
     x = np.zeros((chunk_size, sed.ENCODING_MAX_PASSWORD_LENGTH, sed.chars_len()), dtype=float)
-    y2 = []
-    y1 = []
+    y2_char = np.zeros(shape=(n, sed.chars_len()))
+    y1_op = np.zeros(shape=(n, 3))
 
-    for i in range(len(sub_inputs)):
+    for i in range(n):
         # ed = 1
         edit_dist = Levenshtein.editops(sub_inputs[i], sub_targets[i])[0]
-        if edit_dist[0] == 'insert':
-            tt = [1, 0, 0]
-            assert edit_dist[1] == edit_dist[2]
+        op = edit_dist[0]
+        assert edit_dist[1] == edit_dist[2]
+        if op == 'insert':
+            op_encoding = [1, 0, 0]
             char_changed = sub_targets[i][edit_dist[1]]
-        elif edit_dist[0] == 'replace':
-            tt = [0, 1, 0]
-            assert edit_dist[1] == edit_dist[2]
+        elif op == 'replace':
+            op_encoding = [0, 1, 0]
             char_changed = sub_targets[i][edit_dist[1]]
-        elif edit_dist[0] == 'delete':
-            tt = [0, 0, 1]
-            assert edit_dist[1] == edit_dist[2]
+        elif op == 'delete':
+            op_encoding = [0, 0, 1]
             char_changed = sub_inputs[i][edit_dist[1]]
         else:
-            raise Exception('Impossible.')
-        y1.append(tt)
-        y2.append(sed.encode(char_changed, len(char_changed)).squeeze())
+            raise Exception('Unsupported op.')
+        y1_op[i] = op_encoding
+        y2_char[i] = sed.encode(char_changed, 1)[0]
 
-    y1 = np.array(y1)
-    y2 = np.array(y2)
-
-    for i_, element in enumerate(sub_inputs):
-        x[i_] = sed.encode(element)
+    for i, element in enumerate(sub_inputs):
+        x[i] = sed.encode(element)
 
     split_at = int(len(x) * 0.9)
     (x_train, x_val) = x[:split_at], x[split_at:]
-    (y_train_1, y_val_1) = y1[:split_at], y1[split_at:]
-    (y_train_2, y_val_2) = y2[:split_at], y2[split_at:]
+    (y_train_1, y_val_1) = y1_op[:split_at], y1_op[split_at:]
+    (y_train_2, y_val_2) = y2_char[:split_at], y2_char[split_at:]
     val_sub_targets = sub_targets[split_at:]
     val_sub_inputs = sub_inputs[split_at:]
 
     return x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets
 
 
-def predict_top_most_likely_passwords_monte_carlo(sed: Batcher, model_, rowx_, n_, mc_samples=10000):
-    samples = predict_top_most_likely_passwords(sed, model_, rowx_, mc_samples)
-    return dict(Counter(samples).most_common(n_)).keys()
+def predict_top_most_likely_passwords_monte_carlo(sed: Batcher, model, row_x, n, mc_samples=10000):
+    samples = predict_top_most_likely_passwords(sed, model, row_x, mc_samples)
+    return dict(Counter(samples).most_common(n)).keys()
 
 
-def predict_top_most_likely_passwords(sed: Batcher, model_, rowx_, n_):
-    p_ = model_.predict(rowx_, batch_size=32, verbose=0)[0]
+def predict_top_most_likely_passwords(sed: Batcher, model, row_x, n):
+    p = model.predict(row_x, batch_size=32, verbose=0)[0]
     most_likely_passwords = []
-    for ii in range(n_):
+    for i in range(n):
         # of course should take the edit distance constraint.
-        pa = np.array([np.random.choice(a=range(sed.ENCODING_MAX_SIZE_VOCAB + 2), size=1, p=p_[jj, :])
-                       for jj in range(sed.ENCODING_MAX_PASSWORD_LENGTH)]).flatten()
+        pa = np.array([np.random.choice(a=range(sed.ENCODING_MAX_SIZE_VOCAB + 2), size=1, p=p[j, :])
+                       for j in range(sed.ENCODING_MAX_PASSWORD_LENGTH)]).flatten()
         most_likely_passwords.append(sed.decode(pa, calc_argmax=False))
     return most_likely_passwords
-    # Could sample 1000 and take the most_common()
 
 
 def get_model(hidden_size, num_chars):
     i = Input(shape=(Batcher.ENCODING_MAX_PASSWORD_LENGTH, num_chars))
     x = LSTM(hidden_size)(i)
     x = Dense(Batcher.ENCODING_MAX_PASSWORD_LENGTH * num_chars, activation='relu')(x)
-
     # ADD, DEL, SUB
     o1 = Dense(3, activation='softmax', name='op')(x)
     o2 = Dense(num_chars, activation='softmax', name='char')(x)
-
     return Model(inputs=[i], outputs=[o1, o2])
 
 
@@ -222,48 +216,45 @@ def train(hidden_size, batch_size):
 
     model = get_model(hidden_size, batcher.chars_len())
 
-    losses = {
-        'op': 'categorical_crossentropy',
-        'char': 'categorical_crossentropy',
-    }
+    model.compile(loss={'op': 'categorical_crossentropy', 'char': 'categorical_crossentropy'},
+                  optimizer='adam', metrics=['accuracy'])
 
-    model.compile(loss=losses, optimizer='adam', metrics=['accuracy'])
     model.summary()
 
-    for iteration in range(1, int(1e9)):
+    while True:
         ppp = gen_large_chunk_single_thread(batcher, batcher.inputs, batcher.targets, chunk_size=batch_size * 500)
         x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets = ppp
         print()
-        print('-' * 50)
-        print('Iteration', iteration)
         model.fit(x=x_train, y=[y_train_1, y_train_2], batch_size=batch_size, epochs=5,
                   validation_data=(x_val, [y_val_1, y_val_2]))
-        rowx, correct, previous = x_val, val_sub_targets, val_sub_inputs  # replace by x_val, y_val
-        op, char = model.predict(rowx, verbose=0)
-        q = list(batcher.decode(char))
-        op = op.argmax(axis=1)
+        row_x, password_target, password_input = x_val, val_sub_targets, val_sub_inputs
+        ops, char = model.predict(row_x, verbose=0)
+        predicted_chars = list(batcher.decode(char))
+        ops = ops.argmax(axis=1)
         decoded_op = []
-        for opp in op:
-            if opp == 0:
+        for op in ops:
+            if op == 0:
                 decoded_op.append('insert')
-            elif opp == 1:
+            elif op == 1:
                 decoded_op.append('replace')
             else:
                 decoded_op.append('delete')
         # guess = c_table.decode(preds[0], calc_argmax=False)
-        # top_passwords = predict_top_most_likely_passwords_monte_carlo(model, rowx, 100)
-        # p = model.predict(rowx, batch_size=32, verbose=0)[0]
+        # top_passwords = predict_top_most_likely_passwords_monte_carlo(model, row_x, 100)
+        # p = model.predict(row_x, batch_size=32, verbose=0)[0]
         # p.shape (12, 82)
         # [np.random.choice(a=range(82), size=1, p=p[i, :]) for i in range(12)]
         # s = [np.random.choice(a=range(82), size=1, p=p[i, :])[0] for i in range(12)]
         # c_table.decode(s, calc_argmax=False)
         # Could sample 1000 and take the most_common()
-        for c, p, qq, dd in zip(correct[0:10], previous[0:10], q[0:10], decoded_op[0:10]):
-            print('y      :', c)
-            print('x      :', p)
-            print('predict char :', qq)
-            print('predict op   :', dd)
+        for i, (x, y, pc, po) in enumerate(zip(password_input, password_target, predicted_chars, decoded_op)):
+            print('x            :', x)
+            print('y            :', y)
+            print('predict char :', pc)
+            print('predict op   :', po)
             print('---------------------')
+            if i >= 10:
+                break
 
             # if correct == guess:
             # if correct.strip() in [vv.strip() for vv in top_passwords]:
