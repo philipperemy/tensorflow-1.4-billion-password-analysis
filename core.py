@@ -1,7 +1,6 @@
 import itertools
 import json
 import os
-import shutil
 from collections import Counter
 from glob import glob
 from itertools import combinations
@@ -17,6 +16,7 @@ from tensorflow.keras.layers import LSTM
 from tqdm import tqdm
 
 from batcher import Batcher
+from utils import ensure_dir
 
 
 class Callback:
@@ -79,10 +79,9 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
         with open(self.filename + '_per_user.json', 'w') as w:
             json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
 
-        sep = ' ||| '
         for edit_distance in sorted(self.cache_key_edit_distance_list):
             def csv_line_format(x):
-                return str(edit_distance) + sep + x[0] + sep + x[1] + '\n'
+                return str(edit_distance) + Batcher.SEP + x[0] + Batcher.SEP + x[1] + '\n'
 
             output_dir = os.path.join(os.path.expanduser(self.output_folder), 'edit-distances')
             if not os.path.exists(output_dir):
@@ -158,12 +157,7 @@ def preprocess(breach_compilation_folder, output_folder, max_num_files):
     all_filenames = sorted(list(filter(os.path.isfile, all_filenames)))
     callback_class_name = on_file_read_call_back_class.NAME
     callback_output_dir = os.path.join(output_folder, callback_class_name)
-    try:
-        print('OUTPUT FOLDER: {0}.'.format(output_folder))
-        shutil.rmtree(output_folder)
-    except:
-        pass
-    os.makedirs(callback_output_dir)
+    ensure_dir(output_folder)
 
     print('FOUND: {0} unique files in {1}.'.format(len(all_filenames), breach_compilation_folder))
     if max_num_files is not None:

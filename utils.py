@@ -3,6 +3,8 @@ import numpy as np
 import os
 import random
 
+from batcher import discard_password
+
 
 def parallel_function(f, sequence, num_threads=None):
     from multiprocessing.pool import ThreadPool
@@ -37,13 +39,13 @@ class Ct:
                           writable=True, readable=True, resolve_path=True)
 
 
-def create_dir(output_dir: str):
+def ensure_dir(output_dir: str):
     if len(output_dir) > 0 and not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
 
-def create_dir_for_file(filename: str):
-    create_dir(os.path.dirname(filename))
+def ensure_dir_for_file(filename: str):
+    ensure_dir(os.path.dirname(filename))
 
 
 def shuffle(lst):
@@ -58,3 +60,12 @@ def recursive_help(cmd, parent=None):
     commands = getattr(cmd, 'commands', {})
     for sub in commands.values():
         recursive_help(sub, ctx)
+
+
+def stream_from_file(training_filename, sep):
+    with open(training_filename, 'r', encoding='utf8') as r:
+        for line in r.readlines():
+            _, x, y = line.strip().split()
+            if discard_password(y) or discard_password(x):
+                continue
+            yield x.strip(), y.strip()

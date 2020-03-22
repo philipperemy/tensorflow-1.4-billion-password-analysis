@@ -1,14 +1,18 @@
+import os
 import pickle
+import tempfile
 from collections import Counter
 
 import numpy as np
-import os
-import tempfile
 from tqdm import tqdm
+
+from utils import stream_from_file
 
 
 class Batcher:
     TMP_DIR = tempfile.gettempdir()
+
+    SEP = ' ||| '
 
     # Maximum password length. Passwords greater than this length will be discarded during the encoding phase.
     ENCODING_MAX_PASSWORD_LENGTH = 12
@@ -21,6 +25,19 @@ class Batcher:
 
     OOV_CHAR = '？'
     PAD_CHAR = ' '
+
+    def __init__(self, load=True):
+        if not os.path.exists(self.TMP_DIR):
+            os.makedirs(self.TMP_DIR)
+
+        self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.pkl')
+        self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.pkl')
+
+        if load:
+            try:
+                self.chars, self.c_table = self.get_chars_and_ctable()
+            except FileNotFoundError:
+                raise Exception('Run first run_encoding.py to generate the required files.')
 
     @staticmethod
     def build(training_filename):
@@ -56,19 +73,6 @@ class Batcher:
         print(inputs.shape)
         print(targets.shape)
         return inputs, targets
-
-    def __init__(self, load=True):
-        if not os.path.exists(self.TMP_DIR):
-            os.makedirs(self.TMP_DIR)
-
-        self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.pkl')
-        self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.pkl')
-
-        if load:
-            try:
-                self.chars, self.c_table = self.get_chars_and_ctable()
-            except FileNotFoundError:
-                raise Exception('Run first run_encoding.py to generate the required files.')
 
     def chars_len(self):
         return len(self.chars)
@@ -164,7 +168,7 @@ def build_vocabulary(training_filename):
     print('Reading file {}.'.format(training_filename))
     with open(training_filename, 'r', encoding='utf8', errors='ignore') as r:
         for s in tqdm(r.readlines(), desc='Build Vocabulary'):
-            _, x, y = s.strip().split(' ||| ')
+            _, x, y = s.strip().split(Batcher.SEP)
             if discard_password(y) or discard_password(x):
                 continue
             vocabulary += Counter(list(y + x))
@@ -178,32 +182,27 @@ def build_vocabulary(training_filename):
     sed.write(vocabulary_sorted_list)
 
 
-def stream_from_file(training_filename):
-    with open(training_filename, 'rb') as r:
-        for l in r.readlines():
-            _, x, y = l.decode('utf8').strip().split(' ||| ')
-            if discard_password(y) or discard_password(x):
-                continue
-            yield x.strip(), y.strip()
-
-
 class LazyDataLoader:
+
     def __init__(self, training_filename):
         self.training_filename = training_filename
-        self.stream = stream_from_file(self.training_filename)
+        self.stream = self.init_stream()
+
+    def init_stream(self):
+        return stream_from_file(self.training_filename, sep=Batcher.SEP)
 
     def next(self):
         try:
             return next(self.stream)
         except:
-            self.stream = stream_from_file(self.training_filename)
+            self.stream = self.init_stream()
             return self.next()
 
     def statistics(self):
         max_len_value_x = 0
         max_len_value_y = 0
         num_lines = 0
-        self.stream = stream_from_file(self.training_filename)
+        self.stream = self.init_stream()
         for x, y in self.stream:
             max_len_value_x = max(max_len_value_x, len(x))
             max_len_value_y = max(max_len_value_y, len(y))
