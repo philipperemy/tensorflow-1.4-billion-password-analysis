@@ -17,6 +17,8 @@ class Batcher:
     # we bin the other ones in a OOV (out of vocabulary) group.
     ENCODING_MAX_SIZE_VOCAB = 80
 
+    INPUTS_TARGETS_FILENAME = os.path.join(TMP_DIR, 'x_y.npz')
+
     OOV_CHAR = '？'
     PAD_CHAR = ' '
 
@@ -36,17 +38,17 @@ class Batcher:
             inputs.append(x_)
             targets.append(y_)
 
-        np.savez_compressed('/tmp/x_y.npz', inputs=inputs, targets=targets)
+        np.savez_compressed(Batcher.INPUTS_TARGETS_FILENAME, inputs=inputs, targets=targets)
 
-        print('Done... File is /tmp/x_y.npz')
+        print(f'Done... File is {Batcher.INPUTS_TARGETS_FILENAME}')
 
     @staticmethod
     def load():
-        if not os.path.exists('/tmp/x_y.npz'):
+        if not os.path.exists(Batcher.INPUTS_TARGETS_FILENAME):
             raise Exception('Please run the vectorization script before.')
 
         print('Loading data from prefetch...')
-        data = np.load('/tmp/x_y.npz')
+        data = np.load(Batcher.INPUTS_TARGETS_FILENAME)
         inputs = data['inputs']
         targets = data['targets']
 

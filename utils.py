@@ -49,3 +49,12 @@ def create_dir_for_file(filename: str):
 def shuffle(lst):
     random.seed(123)
     random.shuffle(lst)
+
+
+def recursive_help(cmd, parent=None):
+    ctx = click.core.Context(cmd, info_name=cmd.name, parent=parent)
+    print(cmd.get_help(ctx))
+    print()
+    commands = getattr(cmd, 'commands', {})
+    for sub in commands.values():
+        recursive_help(sub, ctx)

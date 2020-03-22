@@ -3,16 +3,7 @@ import logging
 import click
 
 from core import preprocess, build_encodings, train
-from utils import Ct
-
-
-def recursive_help(cmd, parent=None):
-    ctx = click.core.Context(cmd, info_name=cmd.name, parent=parent)
-    print(cmd.get_help(ctx))
-    print()
-    commands = getattr(cmd, 'commands', {})
-    for sub in commands.values():
-        recursive_help(sub, ctx)
+from utils import Ct, recursive_help
 
 
 @click.group()
