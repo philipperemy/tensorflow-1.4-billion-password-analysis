@@ -17,7 +17,7 @@ nohup.out
 *.out
 *.txt
 
-# C extensions
+# s extensions
 *.so
 
 # Distribution / packaging

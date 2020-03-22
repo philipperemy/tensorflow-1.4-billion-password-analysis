@@ -26,18 +26,30 @@ class Batcher:
     OOV_CHAR = '？'
     PAD_CHAR = ' '
 
-    def __init__(self, load=True):
+    def __init__(self):
         if not os.path.exists(self.TMP_DIR):
             os.makedirs(self.TMP_DIR)
 
         self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.json')
         self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.json')
 
-        if load:
-            try:
-                self.chars, self.c_table = self.get_chars_and_ctable()
-            except FileNotFoundError:
-                raise Exception('Run first run_encoding.py to generate the required files.')
+        if os.path.exists(Batcher.INPUTS_TARGETS_FILENAME):
+            print('Loading data from prefetch...')
+            data = np.load(Batcher.INPUTS_TARGETS_FILENAME)
+            inputs = data['inputs']
+            targets = data['targets']
+
+            print('Data:')
+            print(inputs.shape)
+            print(targets.shape)
+            self.inputs, self.targets = inputs, targets
+        else:
+            self.inputs, self.targets = None, None
+        if os.path.exists(self.token_indices):
+            print('Loading the character table...')
+            self.chars, self.c_table = self.get_chars_and_ctable()
+        else:
+            self.chars, self.c_table = None, None
 
     @staticmethod
     def build(training_filename):
@@ -58,21 +70,6 @@ class Batcher:
         np.savez_compressed(Batcher.INPUTS_TARGETS_FILENAME, inputs=inputs, targets=targets)
 
         print(f'Done... File is {Batcher.INPUTS_TARGETS_FILENAME}.')
-
-    @staticmethod
-    def load():
-        if not os.path.exists(Batcher.INPUTS_TARGETS_FILENAME):
-            raise Exception('Please run the vectorization script before.')
-
-        print('Loading data from prefetch...')
-        data = np.load(Batcher.INPUTS_TARGETS_FILENAME)
-        inputs = data['inputs']
-        targets = data['targets']
-
-        print('Data:')
-        print(inputs.shape)
-        print(targets.shape)
-        return inputs, targets
 
     def chars_len(self):
         return len(self.chars)
@@ -134,8 +131,8 @@ class CharacterTable(object):
         self.char_indices = dict((c, i) for i, c in enumerate(self.chars))
         self.indices_char = dict((i, c) for i, c in enumerate(self.chars))
 
-    def encode(self, C, num_rows):
-        """One hot encode given string C.
+    def encode(self, s, num_rows):
+        """One hot encode given string s.
         # Arguments
             num_rows: Number of rows in the returned one hot encoding. This is
                 used to keep the # of rows for each data the same.
@@ -143,7 +140,7 @@ class CharacterTable(object):
         x = np.zeros((num_rows, len(self.chars)))
         for i in range(num_rows):
             try:
-                c = C[i]
+                c = s[i]
                 if c not in self.char_indices:
                     x[i, self.char_indices['？']] = 1
                 else:
@@ -165,7 +162,7 @@ class colors:
 
 
 def build_vocabulary(training_filename):
-    sed = Batcher(load=False)
+    sed = Batcher()
     vocabulary = Counter()
     print('Reading file {}.'.format(training_filename))
     with open(training_filename, 'r', encoding='utf8', errors='ignore') as r:
@@ -189,17 +186,17 @@ def build_vocabulary(training_filename):
 
 class LazyDataLoader:
 
-    def __init__(self, training_filename):
-        self.training_filename = training_filename
+    def __init__(self, edit_distance_file):
+        self.edit_distance_file = edit_distance_file
         self.stream = self.init_stream()
 
     def init_stream(self):
-        return stream_from_file(self.training_filename, sep=Batcher.SEP, discard_fun=discard_password)
+        return stream_from_file(self.edit_distance_file, sep=Batcher.SEP, discard_fun=discard_password)
 
     def next(self):
         try:
             return next(self.stream)
-        except:
+        except Exception:
             self.stream = self.init_stream()
             return self.next()
 

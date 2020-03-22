@@ -215,25 +215,23 @@ def get_model(hidden_size, num_chars):
 
 
 def train(hidden_size, batch_size):
-    # Try replacing GRU.
     batcher = Batcher()
-    inputs, targets = Batcher.load()
     print('Data:')
-    print(inputs.shape)
-    print(targets.shape)
+    print(batcher.inputs.shape)
+    print(batcher.targets.shape)
 
     model = get_model(hidden_size, batcher.chars_len())
 
     losses = {
-        "op": "categorical_crossentropy",
-        "char": "categorical_crossentropy",
+        'op': 'categorical_crossentropy',
+        'char': 'categorical_crossentropy',
     }
 
     model.compile(loss=losses, optimizer='adam', metrics=['accuracy'])
     model.summary()
 
     for iteration in range(1, int(1e9)):
-        ppp = gen_large_chunk_single_thread(batcher, inputs, targets, chunk_size=batch_size * 500)
+        ppp = gen_large_chunk_single_thread(batcher, batcher.inputs, batcher.targets, chunk_size=batch_size * 500)
         x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets = ppp
         print()
         print('-' * 50)
@@ -281,17 +279,14 @@ def extract_emails_and_passwords(txt_lines):
     for txt_line in txt_lines:
         try:
             if '@' in txt_line:  # does it contain an email address?
-                if all([char in txt_line for char in [':', ';']]):  # which separator is it? : or ;?
-                    separator = ':'
-                elif ':' in txt_line:  # '_---madc0w---_@live.com:iskandar89
+                if ':' in txt_line:  # '_---madc0w---_@live.com:iskandar89
                     separator = ':'
                 elif ';' in txt_line:  # '_---lelya---_@mail.ru;ol1391ga
                     separator = ';'
                 else:
                     continue
-
                 strip_txt_line = txt_line.strip()
-                email, password = strip_txt_line.split(separator)
+                email, password = strip_txt_line.split(separator, 1)
                 emails_passwords.append((email, password))
         except Exception:
             pass

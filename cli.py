@@ -29,7 +29,7 @@ def cli_preprocess(breach_compilation_folder, output_folder, max_num_files):
 
 
 @cli.command('build-encodings')
-@click.option('--training_filename', required=True, type=Ct.input_file())
+@click.option('--edit_distance_file', required=True, type=Ct.input_file())
 def cli_build_encodings(training_filename):
     build_encodings(training_filename)
 
