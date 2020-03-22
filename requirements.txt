@@ -4,3 +4,4 @@ tqdm
 unicode_slugify
 editdistance
 numpy
+click

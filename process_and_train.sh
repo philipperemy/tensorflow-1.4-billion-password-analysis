@@ -13,4 +13,4 @@ python run_data_processing.py --breach_compilation_folder $1 --max_num_files 100
 rm -rf /tmp/indices_token.pkl /tmp/token_indices.pkl /tmp/x_y.npz
 python run_encoding.py --training_filename ~/BreachCompilationAnalysis/edit-distances/1.csv
 
-python train_model.py
+python train.py

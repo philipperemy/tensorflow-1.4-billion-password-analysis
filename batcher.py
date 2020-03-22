@@ -3,18 +3,22 @@ from collections import Counter
 
 import numpy as np
 import os
+import tempfile
 from tqdm import tqdm
-
-from utils import TMP_DIR
 
 
 class Batcher:
+    TMP_DIR = tempfile.gettempdir()
+
     # Maximum password length. Passwords greater than this length will be discarded during the encoding phase.
     ENCODING_MAX_PASSWORD_LENGTH = 12
 
     # Maximum number of characters for encoding. By default, we use the 80 most frequent characters and
     # we bin the other ones in a OOV (out of vocabulary) group.
     ENCODING_MAX_SIZE_VOCAB = 80
+
+    OOV_CHAR = '？'
+    PAD_CHAR = ' '
 
     @staticmethod
     def build(training_filename):
@@ -52,11 +56,11 @@ class Batcher:
         return inputs, targets
 
     def __init__(self):
-        if not os.path.exists(TMP_DIR):
-            os.makedirs(TMP_DIR)
+        if not os.path.exists(self.TMP_DIR):
+            os.makedirs(self.TMP_DIR)
 
-        self.token_indices = os.path.join(TMP_DIR, 'token_indices.pkl')
-        self.indices_token = os.path.join(TMP_DIR, 'indices_token.pkl')
+        self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.pkl')
+        self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.pkl')
 
         try:
             self.chars, self.c_table = self.get_chars_and_ctable()
@@ -161,13 +165,12 @@ def build_vocabulary(training_filename):
             if discard_password(y) or discard_password(x):
                 continue
             vocabulary += Counter(list(y + x))
-    vocabulary_sorted_list = sorted(dict(vocabulary.most_common(ENCODING_MAX_SIZE_VOCAB)).keys())
-    oov_char = '？'
-    pad_char = ' '
-    print('Out of vocabulary (OOV) char is {}.'.format(oov_char))
-    print('Pad char is "{}".'.format(pad_char))
-    vocabulary_sorted_list.append(oov_char)  # out of vocabulary.
-    vocabulary_sorted_list.append(pad_char)  # pad char.
+    vocabulary_sorted_list = sorted(dict(vocabulary.most_common(sed.ENCODING_MAX_SIZE_VOCAB)).keys())
+
+    print('Out of vocabulary (OOV) char is {}.'.format(sed.OOV_CHAR))
+    print('Pad char is "{}".'.format(sed.PAD_CHAR))
+    vocabulary_sorted_list.append(sed.OOV_CHAR)  # out of vocabulary.
+    vocabulary_sorted_list.append(sed.PAD_CHAR)  # pad char.
     print('Vocabulary = ' + ' '.join(vocabulary_sorted_list))
     sed.write(vocabulary_sorted_list)
 
