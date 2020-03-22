@@ -16,7 +16,7 @@ from tensorflow.keras.layers import LSTM
 from tqdm import tqdm
 
 from batcher import Batcher
-from utils import ensure_dir
+from utils import ensure_dir, ensure_dir_for_file
 
 
 class Callback:
@@ -76,8 +76,11 @@ class ReducePasswordsOnSimilarEmailsCallback(Callback):
 
     def persist(self):
         self._finalize_cache()
-        with open(self.filename + '_per_user.json', 'w') as w:
-            json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True)
+        output_file = self.filename + '_per_user.json'
+        ensure_dir_for_file(output_file)
+        with open(output_file, 'w') as w:
+            json.dump(fp=w, obj=self.cache_key_edit_distance_keep_user_struct, indent=4, sort_keys=True,
+                      ensure_ascii=False)
 
         for edit_distance in sorted(self.cache_key_edit_distance_list):
             def csv_line_format(x):

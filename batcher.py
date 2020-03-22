@@ -1,5 +1,5 @@
+import json
 import os
-import pickle
 import tempfile
 from collections import Counter
 
@@ -21,7 +21,7 @@ class Batcher:
     # we bin the other ones in a OOV (out of vocabulary) group.
     ENCODING_MAX_SIZE_VOCAB = 80
 
-    INPUTS_TARGETS_FILENAME = os.path.join(TMP_DIR, 'x_y.npz')
+    INPUTS_TARGETS_FILENAME = os.path.join(TMP_DIR, 'model_inputs.npz')
 
     OOV_CHAR = '？'
     PAD_CHAR = ' '
@@ -30,8 +30,8 @@ class Batcher:
         if not os.path.exists(self.TMP_DIR):
             os.makedirs(self.TMP_DIR)
 
-        self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.pkl')
-        self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.pkl')
+        self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.json')
+        self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.json')
 
         if load:
             try:
@@ -57,7 +57,7 @@ class Batcher:
 
         np.savez_compressed(Batcher.INPUTS_TARGETS_FILENAME, inputs=inputs, targets=targets)
 
-        print(f'Done... File is {Batcher.INPUTS_TARGETS_FILENAME}')
+        print(f'Done... File is {Batcher.INPUTS_TARGETS_FILENAME}.')
 
     @staticmethod
     def load():
@@ -78,10 +78,12 @@ class Batcher:
         return len(self.chars)
 
     def get_indices_token(self):
-        return pickle.load(open(self.indices_token, 'rb'))
+        with open(self.indices_token, 'r') as r:
+            return json.load(r)
 
     def get_token_indices(self):
-        return pickle.load(open(self.token_indices, 'rb'))
+        with open(self.token_indices, 'r') as r:
+            return json.load(r)
 
     def get_vocab_size(self):
         return len(self.get_token_indices())
@@ -96,11 +98,11 @@ class Batcher:
         indices_token = dict((i, c) for (c, i) in enumerate(vocabulary_sorted_list))
         assert len(token_indices) == len(indices_token)
 
-        with open(self.token_indices, 'wb') as w:
-            pickle.dump(obj=token_indices, file=w)
+        with open(self.token_indices, 'w') as w:
+            json.dump(obj=token_indices, fp=w, indent=2)
 
-        with open(self.indices_token, 'wb') as w:
-            pickle.dump(obj=indices_token, file=w)
+        with open(self.indices_token, 'w') as w:
+            json.dump(obj=indices_token, fp=w, indent=2)
 
         print(f'Done... File is {self.token_indices}.')
         print(f'Done... File is {self.indices_token}.')
@@ -168,10 +170,13 @@ def build_vocabulary(training_filename):
     print('Reading file {}.'.format(training_filename))
     with open(training_filename, 'r', encoding='utf8', errors='ignore') as r:
         for s in tqdm(r.readlines(), desc='Build Vocabulary'):
-            _, x, y = s.strip().split(Batcher.SEP)
-            if discard_password(y) or discard_password(x):
-                continue
-            vocabulary += Counter(list(y + x))
+            try:
+                _, x, y = s.strip().split(Batcher.SEP)
+                if discard_password(y) or discard_password(x):
+                    continue
+                vocabulary += Counter(list(y + x))
+            except Exception:
+                print('Error during encoding.')
     vocabulary_sorted_list = sorted(dict(vocabulary.most_common(sed.ENCODING_MAX_SIZE_VOCAB)).keys())
 
     print('Out of vocabulary (OOV) char is {}.'.format(sed.OOV_CHAR))
@@ -189,7 +194,7 @@ class LazyDataLoader:
         self.stream = self.init_stream()
 
     def init_stream(self):
-        return stream_from_file(self.training_filename, sep=Batcher.SEP)
+        return stream_from_file(self.training_filename, sep=Batcher.SEP, discard_fun=discard_password)
 
     def next(self):
         try:

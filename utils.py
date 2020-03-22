@@ -1,9 +1,8 @@
-import click
-import numpy as np
 import os
 import random
 
-from batcher import discard_password
+import click
+import numpy as np
 
 
 def parallel_function(f, sequence, num_threads=None):
@@ -62,10 +61,13 @@ def recursive_help(cmd, parent=None):
         recursive_help(sub, ctx)
 
 
-def stream_from_file(training_filename, sep):
+def stream_from_file(training_filename, sep, discard_fun):
     with open(training_filename, 'r', encoding='utf8') as r:
         for line in r.readlines():
-            _, x, y = line.strip().split()
-            if discard_password(y) or discard_password(x):
+            try:
+                _, x, y = line.strip().split()
+                if discard_fun(y) or discard_fun(x):
+                    continue
+                yield x.strip(), y.strip()
+            except Exception:
                 continue
-            yield x.strip(), y.strip()
