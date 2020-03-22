@@ -38,7 +38,6 @@ class Batcher:
             data = np.load(Batcher.INPUTS_TARGETS_FILENAME)
             inputs = data['inputs']
             targets = data['targets']
-
             print('Data:')
             print(inputs.shape)
             print(targets.shape)
@@ -61,6 +60,7 @@ class Batcher:
         inputs = []
         targets = []
         print('Generating data...')
+        # TODO: this batcher is not efficient at all.
         for _ in tqdm(range(training_records_count), desc='Generating inputs and targets'):
             x_, y_ = data_loader.next()
             # Pad the data with spaces such that it is always MAXLEN.
@@ -68,7 +68,6 @@ class Batcher:
             targets.append(y_)
 
         np.savez_compressed(Batcher.INPUTS_TARGETS_FILENAME, inputs=inputs, targets=targets)
-
         print(f'Done... File is {Batcher.INPUTS_TARGETS_FILENAME}.')
 
     def chars_len(self):
@@ -116,15 +115,17 @@ def discard_password(password):
 
 
 class CharacterTable(object):
-    """Given a set of characters:
+    """
+    Given a set of characters:
     + Encode them to a one hot integer representation
     + Decode the one hot integer representation to their character output
     + Decode a vector of probabilities to their character output
     """
 
     def __init__(self, chars):
-        """Initialize character table.
-        # Arguments
+        """
+        Initialize character table.
+        Arguments
             chars: Characters that can appear in the input.
         """
         self.chars = sorted(set(chars))
@@ -132,8 +133,9 @@ class CharacterTable(object):
         self.indices_char = dict((i, c) for i, c in enumerate(self.chars))
 
     def encode(self, s, num_rows):
-        """One hot encode given string s.
-        # Arguments
+        """
+        One hot encode given string s.
+        Arguments
             num_rows: Number of rows in the returned one hot encoding. This is
                 used to keep the # of rows for each data the same.
         """
