@@ -1,5 +1,6 @@
 import os
 import random
+import shutil
 
 import click
 import numpy as np
@@ -41,6 +42,12 @@ class Ct:
 def ensure_dir(output_dir: str):
     if len(output_dir) > 0 and not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+
+def create_new_dir(output_dir: str):
+    if os.path.exists(output_dir):
+        shutil.rmtree(output_dir)
+    os.makedirs(output_dir)
 
 
 def ensure_dir_for_file(filename: str):

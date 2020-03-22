@@ -16,7 +16,7 @@ from tensorflow.keras.layers import LSTM
 from tqdm import tqdm
 
 from batcher import Batcher
-from utils import ensure_dir, ensure_dir_for_file
+from utils import ensure_dir, ensure_dir_for_file, create_new_dir
 
 
 class Callback:
@@ -160,7 +160,7 @@ def preprocess(breach_compilation_folder, output_folder, max_num_files):
     all_filenames = sorted(list(filter(os.path.isfile, all_filenames)))
     callback_class_name = on_file_read_call_back_class.NAME
     callback_output_dir = os.path.join(output_folder, callback_class_name)
-    ensure_dir(output_folder)
+    create_new_dir(output_folder)
 
     print('FOUND: {0} unique files in {1}.'.format(len(all_filenames), breach_compilation_folder))
     if max_num_files is not None:
