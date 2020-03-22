@@ -24,14 +24,14 @@ def dumphelp():
 @click.option('--breach_compilation_folder', required=True, type=Ct.input_dir())
 @click.option('--output_dir', required=True, type=Ct.output_dir())
 @click.option('--max_num_files', default=0, type=int, show_default=True)
-def cli_preprocess(breach_compilation_folder, output_folder, max_num_files):
-    preprocess(breach_compilation_folder, output_folder, max_num_files)
+def cli_preprocess(breach_compilation_folder, output_dir, max_num_files):
+    preprocess(breach_compilation_folder, output_dir, max_num_files)
 
 
 @cli.command('build-encodings')
 @click.option('--edit_distance_file', required=True, type=Ct.input_file())
-def cli_build_encodings(training_filename):
-    build_encodings(training_filename)
+def cli_build_encodings(edit_distance_file):
+    build_encodings(edit_distance_file)
 
 
 @cli.command('train')
