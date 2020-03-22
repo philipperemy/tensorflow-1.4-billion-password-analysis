@@ -2,7 +2,7 @@ import logging
 
 import click
 
-from core import preprocess
+from core import preprocess, build_encodings, train
 from utils import Ct
 
 
@@ -30,11 +30,24 @@ def dumphelp():
 
 
 @cli.command('preprocess')
-@click.option('--breach_compilation_folder', required=True, type=Ct.input_file())
+@click.option('--breach_compilation_folder', required=True, type=Ct.input_dir())
 @click.option('--output_folder', required=True, type=Ct.output_dir())
 @click.option('--max_num_files', default=0, type=int, show_default=True)
 def cli_preprocess(breach_compilation_folder, output_folder, max_num_files):
     preprocess(breach_compilation_folder, output_folder, max_num_files)
+
+
+@cli.command('build-encodings')
+@click.option('--training_filename', required=True, type=Ct.input_file())
+def cli_build_encodings(training_filename):
+    build_encodings(training_filename)
+
+
+@cli.command('train')
+@click.option('--hidden_size', default=256, type=int, show_default=True)
+@click.option('--batch_size', default=256, type=int, show_default=True)
+def cli_train(hidden_size, batch_size):
+    return train(hidden_size, batch_size)
 
 
 if __name__ == '__main__':

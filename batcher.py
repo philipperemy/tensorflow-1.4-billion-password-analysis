@@ -55,17 +55,18 @@ class Batcher:
         print(targets.shape)
         return inputs, targets
 
-    def __init__(self):
+    def __init__(self, load=True):
         if not os.path.exists(self.TMP_DIR):
             os.makedirs(self.TMP_DIR)
 
         self.token_indices = os.path.join(self.TMP_DIR, 'token_indices.pkl')
         self.indices_token = os.path.join(self.TMP_DIR, 'indices_token.pkl')
 
-        try:
-            self.chars, self.c_table = self.get_chars_and_ctable()
-        except FileNotFoundError:
-            raise Exception('Run first run_encoding.py to generate the required files.')
+        if load:
+            try:
+                self.chars, self.c_table = self.get_chars_and_ctable()
+            except FileNotFoundError:
+                raise Exception('Run first run_encoding.py to generate the required files.')
 
     def chars_len(self):
         return len(self.chars)
@@ -102,7 +103,7 @@ class Batcher:
         return self.c_table.decode(char, calc_argmax)
 
     def encode(self, elt, num_rows=ENCODING_MAX_PASSWORD_LENGTH):
-        self.c_table.encode(elt, num_rows)
+        return self.c_table.encode(elt, num_rows)
 
 
 def discard_password(password):
@@ -156,7 +157,7 @@ class colors:
 
 
 def build_vocabulary(training_filename):
-    sed = Batcher()
+    sed = Batcher(load=False)
     vocabulary = Counter()
     print('Reading file {}.'.format(training_filename))
     with open(training_filename, 'r', encoding='utf8', errors='ignore') as r:

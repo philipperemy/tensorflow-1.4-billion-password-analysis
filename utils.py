@@ -4,28 +4,6 @@ import os
 import random
 
 
-def extract_emails_and_passwords(txt_lines):
-    emails_passwords = []
-    for txt_line in txt_lines:
-        try:
-            if '@' in txt_line:  # does it contain an email address?
-                if all([char in txt_line for char in [':', ';']]):  # which separator is it? : or ;?
-                    separator = ':'
-                elif ':' in txt_line:  # '_---madc0w---_@live.com:iskandar89
-                    separator = ':'
-                elif ';' in txt_line:  # '_---lelya---_@mail.ru;ol1391ga
-                    separator = ';'
-                else:
-                    continue
-
-                strip_txt_line = txt_line.strip()
-                email, password = strip_txt_line.split(separator)
-                emails_passwords.append((email, password))
-        except Exception:
-            pass
-    return emails_passwords
-
-
 def parallel_function(f, sequence, num_threads=None):
     from multiprocessing.pool import ThreadPool
     pool = ThreadPool(processes=num_threads)

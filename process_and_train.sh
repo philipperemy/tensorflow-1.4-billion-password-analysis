@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
 
+set -e
+
 if [[ $# -eq 0 ]] ; then
-    echo 'USAGE: ./script.sh [breach_compilation_folder].'
+    echo 'Arguments: [breach_compilation_folder].'
     exit 0
 fi
 
-echo "Remove --max_num_files to process the entire dataset (few hours of processing in total)."
+python cli.py preprocess --breach_compilation_folder $1 --max_num_files 100 --output_folder breach_compilation_preprocessed
 
-python run_data_processing.py --breach_compilation_folder $1 --max_num_files 100 --output_folder ~/BreachCompilationAnalysis
+python cli.py build-encodings --training_filename breach_compilation_preprocessed/edit-distances/1.csv
 
-# Remove this.
-rm -rf /tmp/indices_token.pkl /tmp/token_indices.pkl /tmp/x_y.npz
-python run_encoding.py --training_filename ~/BreachCompilationAnalysis/edit-distances/1.csv
-
-python train.py
+python cli.py train
