@@ -134,7 +134,7 @@ class CharacterTable(object):
 
     def encode(self, s, num_rows):
         """
-        One hot encode given string s.
+        One hot encode given initial s.
         Arguments
             num_rows: Number of rows in the returned one hot encoding. This is
                 used to keep the # of rows for each data the same.

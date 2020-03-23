@@ -225,7 +225,7 @@ def train(hidden_size, batch_size):
         ppp = gen_large_chunk_single_thread(batcher, batcher.inputs, batcher.targets, chunk_size=batch_size * 500)
         x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets = ppp
         print()
-        model.fit(x=x_train, y=[y_train_1, y_train_2], batch_size=batch_size, epochs=5,
+        model.fit(x=x_train, y=[y_train_1, y_train_2], batch_size=batch_size, epochs=20,
                   validation_data=(x_val, [y_val_1, y_val_2]))
         row_x, password_target, password_input = x_val, val_sub_targets, val_sub_inputs
         ops, char = model.predict(row_x, verbose=0)

@@ -38,7 +38,7 @@ def cli_build_encodings(edit_distance_file):
 @click.option('--hidden_size', default=256, type=int, show_default=True)
 @click.option('--batch_size', default=256, type=int, show_default=True)
 def cli_train(hidden_size, batch_size):
-    return train(hidden_size, batch_size)
+    train(hidden_size, batch_size)
 
 
 if __name__ == '__main__':
