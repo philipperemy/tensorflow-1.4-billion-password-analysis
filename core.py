@@ -10,7 +10,7 @@ import editdistance
 import numpy as np
 from tensorflow.keras import Input
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, Dropout
 from tensorflow.keras.layers import LSTM
 from tqdm import tqdm
 
@@ -201,7 +201,9 @@ def predict_top_most_likely_passwords(sed: Batcher, model, row_x, n):
 def get_model(hidden_size, num_chars):
     i = Input(shape=(Batcher.ENCODING_MAX_PASSWORD_LENGTH, num_chars))
     x = LSTM(hidden_size)(i)
+    x = Dropout(0.2)(x)
     x = Dense(Batcher.ENCODING_MAX_PASSWORD_LENGTH * num_chars, activation='relu')(x)
+    x = Dropout(0.2)(x)
     # ADD, DEL, SUB
     o1 = Dense(3, activation='softmax', name='op')(x)
     o2 = Dense(num_chars, activation='softmax', name='char')(x)
@@ -221,24 +223,11 @@ def train(hidden_size, batch_size):
 
     model.summary()
 
-    while True:
-        ppp = gen_large_chunk_single_thread(batcher, batcher.inputs, batcher.targets, chunk_size=batch_size * 500)
+    for grad_step in range(int(1e9)):
+        ppp = gen_large_chunk_single_thread(batcher, batcher.inputs, batcher.targets, chunk_size=batch_size)
         x_train, y_train_1, y_train_2, x_val, y_val_1, y_val_2, val_sub_inputs, val_sub_targets = ppp
-        print()
-        model.fit(x=x_train, y=[y_train_1, y_train_2], batch_size=batch_size, epochs=20,
-                  validation_data=(x_val, [y_val_1, y_val_2]))
-        row_x, password_target, password_input = x_val, val_sub_targets, val_sub_inputs
-        ops, char = model.predict(row_x, verbose=0)
-        predicted_chars = list(batcher.decode(char))
-        ops = ops.argmax(axis=1)
-        decoded_op = []
-        for op in ops:
-            if op == 0:
-                decoded_op.append('insert')
-            elif op == 1:
-                decoded_op.append('replace')
-            else:
-                decoded_op.append('delete')
+        model.train_on_batch(x=x_train, y=[y_train_1, y_train_2])
+        print(dict(zip(model.metrics_names, model.test_on_batch(x=x_val, y=[y_val_1, y_val_2]))))
         # guess = c_table.decode(preds[0], calc_argmax=False)
         # top_passwords = predict_top_most_likely_passwords_monte_carlo(model, row_x, 100)
         # p = model.predict(row_x, batch_size=32, verbose=0)[0]
@@ -247,14 +236,27 @@ def train(hidden_size, batch_size):
         # s = [np.random.choice(a=range(82), size=1, p=p[i, :])[0] for i in range(12)]
         # c_table.decode(s, calc_argmax=False)
         # Could sample 1000 and take the most_common()
-        for i, (x, y, pc, po) in enumerate(zip(password_input, password_target, predicted_chars, decoded_op)):
-            print('x            :', x)
-            print('y            :', y)
-            print('predict char :', pc)
-            print('predict op   :', po)
-            print('---------------------')
-            if i >= 10:
-                break
+        if grad_step % 100 == 0:
+            row_x, password_target, password_input = x_val, val_sub_targets, val_sub_inputs
+            ops, char = model.predict(row_x, verbose=0)
+            predicted_chars = list(batcher.decode(char))
+            ops = ops.argmax(axis=1)
+            decoded_op = []
+            for op in ops:
+                if op == 0:
+                    decoded_op.append('insert')
+                elif op == 1:
+                    decoded_op.append('replace')
+                else:
+                    decoded_op.append('delete')
+            for i, (x, y, pc, po) in enumerate(zip(password_input, password_target, predicted_chars, decoded_op)):
+                print('x            :', x)
+                print('y            :', y)
+                print('predict char :', pc)
+                print('predict op   :', po)
+                print('---------------------')
+                if i >= 100:
+                    break
 
             # if correct == guess:
             # if correct.strip() in [vv.strip() for vv in top_passwords]:
