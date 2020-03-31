@@ -1,6 +1,7 @@
 keras
-tensorflow
+tensorflow==2.0
 tqdm
 unicode_slugify
 editdistance
 numpy
+click
